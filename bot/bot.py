@@ -169,7 +169,7 @@ async def handle_mode(update: Update, context: ContextTypes.DEFAULT_TYPE, mode: 
 
     existing = _conversations.get(chat_id, {})
     _conversations[chat_id] = {**existing, "state": "awaiting_input", "mode": mode}
-    await update.message.reply_text(f"Mode set to *{mode}*. Send a URL and notes.", parse_mode="Markdown")
+    await update.message.reply_text(f"Mode set to {mode}. Send a URL and notes.")
 
 
 async def handle_blog(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -198,11 +198,12 @@ async def handle_save(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     await update.message.reply_text("Saving to Notion...")
     try:
+        # Use .get() so missing keys (e.g. linkedin in /blog mode) pass as empty string
         notion_url = save_generated_draft(
             url=conv["url"],
             notes=conv["notes"],
-            blog_post=conv["drafts"]["Blog Post"],
-            linkedin=conv["drafts"]["LinkedIn"],
+            blog_post=conv["drafts"].get("Blog Post", ""),
+            linkedin=conv["drafts"].get("LinkedIn", ""),
         )
         _conversations.pop(chat_id, None)
         await update.message.reply_text(f"Saved. {notion_url}")
