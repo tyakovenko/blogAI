@@ -1,7 +1,7 @@
 """
 Core pipeline: article URL + notes → blog post draft.
 
-Primary LLM: Mistral 7B Instruct via HuggingFace Inference API
+Primary LLM: configured in app/config.py
 Fallback LLM: Claude Sonnet (TODO: wire up once API credits are added)
 """
 
@@ -15,11 +15,14 @@ import trafilatura
 from huggingface_hub import InferenceClient
 from dotenv import load_dotenv
 
+try:
+    from .config import ACTIVE_MODEL, ACTIVE_MODEL_DISPLAY, DEFAULT_TONE, TONE_INSTRUCTIONS
+except ImportError:
+    from config import ACTIVE_MODEL, ACTIVE_MODEL_DISPLAY, DEFAULT_TONE, TONE_INSTRUCTIONS
+
 load_dotenv()
 
 HF_TOKEN = os.getenv("HF_TOKEN")
-
-MISTRAL_MODEL = "Qwen/Qwen2.5-7B-Instruct"
 
 
 def fetch_article(url: str) -> str:
@@ -33,29 +36,8 @@ def fetch_article(url: str) -> str:
     return text
 
 
-def build_prompt(article_text: str, notes: str, tone: str = "blog_social") -> str:
-    tone_instruction = {
-        "blog_social": (
-            "Write in a casual, conversational blog voice. "
-            "Lead with a hot take or relatable observation — not a thesis. "
-            "Use contractions. Keep paragraphs short (2–3 sentences). "
-            "Reference real platforms, apps, or cultural moments by name where relevant. "
-            "Use 'honestly,' 'lowkey,' 'to be fair' as natural beats. "
-            "State opinions bluntly first, unpack after. "
-            "Take something that seems surface-level and add a layer that makes it more interesting. "
-            "End with an open question or thought, not a formal conclusion. "
-            "No em-dashes. No bullet points in the body."
-        ),
-        "professional": (
-            "Write in a clear, professional tone. Build context before the thesis. "
-            "Use concrete named examples. Every paragraph needs a claim, evidence, and implication. "
-            "End by returning to the opening frame."
-        ),
-        "academic": (
-            "Write in a structured, analytical tone. Cite reasoning explicitly. "
-            "Acknowledge counterarguments and redirect. Formal transitions only."
-        ),
-    }.get(tone, "")
+def build_prompt(article_text: str, notes: str, tone: str = DEFAULT_TONE) -> str:
+    tone_instruction = TONE_INSTRUCTIONS.get(tone, "")
 
     blog_social_example = """
 Example of the correct format and voice (blog_social):
@@ -116,7 +98,7 @@ def generate_with_mistral(prompt: str) -> tuple[str, float]:
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": prompt},
         ],
-        model=MISTRAL_MODEL,
+        model=ACTIVE_MODEL,
         max_tokens=900,
         temperature=0.85,
     )
@@ -141,7 +123,7 @@ def generate_post(
 
     return {
         "post": post.strip(),
-        "model_used": MISTRAL_MODEL.split("/")[-1],
+        "model_used": ACTIVE_MODEL_DISPLAY,
         "latency": round(latency, 2),
         "article_preview": article_text[:300] + "...",
         "error_log": None,

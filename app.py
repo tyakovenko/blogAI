@@ -5,6 +5,7 @@ Entry point for HuggingFace Spaces and local development.
 
 import gradio as gr
 from app.pipeline import generate_post, build_linkedin_url
+from app.config import TONES, DEFAULT_TONE, ACTIVE_MODEL_DISPLAY
 
 
 def run_pipeline(url: str, notes: str, tone: str) -> tuple[str, str]:
@@ -25,7 +26,7 @@ def run_pipeline(url: str, notes: str, tone: str) -> tuple[str, str]:
 
 
 with gr.Blocks(title="BlogAI") as demo:
-    gr.Markdown("# BlogAI\nTurn an article + your notes into a polished blog post draft.")
+    gr.Markdown(f"# BlogAI\nTurn an article + your notes into a polished blog post draft.\n\n*Model: {ACTIVE_MODEL_DISPLAY}*")
 
     with gr.Row():
         with gr.Column(scale=1):
@@ -39,8 +40,8 @@ with gr.Blocks(title="BlogAI") as demo:
                 lines=8,
             )
             tone_selector = gr.Radio(
-                choices=["blog_social", "professional", "academic"],
-                value="blog_social",
+                choices=list(TONES.keys()),
+                value=DEFAULT_TONE,
                 label="Tone",
             )
             generate_btn = gr.Button("Generate draft", variant="primary")

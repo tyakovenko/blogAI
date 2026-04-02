@@ -18,6 +18,8 @@
 | Web framework must be Streamlit, Gradio, Voila, Shiny, or Panel | Assignment requirement | — |
 | No local LLM — hardware is Intel UHD only, 16GB RAM | Discovered via hardware check | — |
 | No Vercel/Next.js — not on approved framework list | Assignment requirement | — |
+| Never hardcode model names, tone lists, or UI labels — all config lives in `app/config.py` | User feedback | — |
+| Never hardcode calculated values (percentages, counts, scores) in reports or UI — always derive from data | User feedback | — |
 
 ---
 
