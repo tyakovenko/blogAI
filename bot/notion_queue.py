@@ -36,11 +36,11 @@ def _text_blocks(text: str) -> list[dict]:
     return blocks
 
 
-def save_generated_draft(url: str, notes: str, blog_post: str, linkedin: str) -> str:
+def save_generated_draft(url: str, notes: str, blog_post: str = "", linkedin: str = "") -> str:
     """
     Save a fully generated draft to Notion.
     Blog post goes into the page body. LinkedIn goes into the LinkedIn property.
-    Status is set to Draft Generated.
+    Either can be omitted if not generated. Status is set to Draft Generated.
     """
     database_id = os.getenv("NOTION_DATABASE_ID")
     if not database_id:
@@ -49,16 +49,19 @@ def save_generated_draft(url: str, notes: str, blog_post: str, linkedin: str) ->
     client = _get_client()
     title = url if url else (notes[:80] + "..." if len(notes) > 80 else notes)
 
+    properties = {
+        "Name": {"title": [{"text": {"content": title}}]},
+        "URL": {"url": url or None},
+        "Notes": {"rich_text": [{"text": {"content": notes[:2000]}}]},
+        "Status": {"select": {"name": "Draft Generated"}},
+    }
+    if linkedin:
+        properties["LinkedIn"] = {"rich_text": [{"text": {"content": linkedin[:2000]}}]}
+
     page = client.pages.create(
         parent={"database_id": database_id},
-        properties={
-            "Name": {"title": [{"text": {"content": title}}]},
-            "URL": {"url": url or None},
-            "Notes": {"rich_text": [{"text": {"content": notes[:2000]}}]},
-            "LinkedIn": {"rich_text": [{"text": {"content": linkedin[:2000]}}]},
-            "Status": {"select": {"name": "Draft Generated"}},
-        },
-        children=_text_blocks(blog_post),
+        properties=properties,
+        children=_text_blocks(blog_post) if blog_post else [],
     )
     return page["url"]
 

@@ -37,9 +37,17 @@ logger = logging.getLogger(__name__)
 
 URL_RE = re.compile(r"https?://\S+")
 
-# Per-chat state: {chat_id: {"state": "idle"|"reviewing", "url": str, "notes": str, "drafts": dict}}
+# Per-chat state:
+# {chat_id: {"state": "idle"|"reviewing"|"awaiting_input", "mode": "blog"|"linkedin"|"all",
+#             "url": str, "notes": str, "drafts": dict}}
 _conversations: dict[int, dict] = {}
 _executor = ThreadPoolExecutor(max_workers=2)
+
+MODE_FORMATS = {
+    "blog": ["Blog Post"],
+    "linkedin": ["LinkedIn"],
+    "all": None,  # None means all OUTPUT_FORMATS
+}
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -55,8 +63,8 @@ def _parse_message(text: str) -> tuple[str, str]:
     return url, notes
 
 
-def _run_pipeline(url: str, notes: str) -> dict:
-    return generate_post(url, notes, tone="blog_social")
+def _run_pipeline(url: str, notes: str, mode: str = "all") -> dict:
+    return generate_post(url, notes, tone="blog_social", formats=MODE_FORMATS[mode])
 
 
 def _apply_correction(draft: str, instruction: str) -> str:
@@ -92,33 +100,36 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     state = _conversations.get(chat_id, {}).get("state", "idle")
 
-    if state == "idle":
+    if state in ("idle", "awaiting_input"):
         url, notes = _parse_message(text)
         if not url and not notes:
             await update.message.reply_text("Send a URL and/or notes.")
             return
 
-        await update.message.reply_text("Running pipeline...")
+        mode = _conversations.get(chat_id, {}).get("mode", "all")
+        await update.message.reply_text(f"Running pipeline ({mode} mode)...")
 
         loop = asyncio.get_event_loop()
         try:
-            result = await loop.run_in_executor(_executor, _run_pipeline, url, notes)
+            result = await loop.run_in_executor(_executor, _run_pipeline, url, notes, mode)
         except Exception as e:
             logger.error("Pipeline error: %s", e)
             await update.message.reply_text(f"Pipeline failed: {e}")
             return
 
         drafts = result["drafts"]
-        _conversations[chat_id] = {"state": "reviewing", "url": url, "notes": notes, "drafts": drafts}
+        _conversations[chat_id] = {"state": "reviewing", "mode": mode, "url": url, "notes": notes, "drafts": drafts}
 
         blog = drafts.get("Blog Post", "")
         linkedin = drafts.get("LinkedIn", "")
 
-        await update.message.reply_text(f"*Blog Post*\n\n{blog}", parse_mode="Markdown")
-        await update.message.reply_text(f"*LinkedIn*\n\n{linkedin}", parse_mode="Markdown")
+        if blog:
+            await update.message.reply_text(f"*Blog Post*\n\n{blog}", parse_mode="Markdown")
+        if linkedin:
+            await update.message.reply_text(f"*LinkedIn*\n\n{linkedin}", parse_mode="Markdown")
         await update.message.reply_text(
             f"Generated with {result['model_used']} in {result['latency']}s\n\n"
-            "Reply to edit the blog post. /save to save to Notion. /discard to cancel."
+            "Reply to edit. /save to save to Notion. /discard to cancel."
         )
 
     elif state == "reviewing":
@@ -136,6 +147,30 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         _conversations[chat_id]["drafts"]["Blog Post"] = updated
         await update.message.reply_text(f"*Blog Post*\n\n{updated}", parse_mode="Markdown")
         await update.message.reply_text("Reply to edit more. /save to save. /discard to cancel.")
+
+
+async def handle_mode(update: Update, context: ContextTypes.DEFAULT_TYPE, mode: str) -> None:
+    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
+
+    if not _is_authorized(user_id):
+        return
+
+    existing = _conversations.get(chat_id, {})
+    _conversations[chat_id] = {**existing, "state": "awaiting_input", "mode": mode}
+    await update.message.reply_text(f"Mode set to *{mode}*. Send a URL and notes.", parse_mode="Markdown")
+
+
+async def handle_blog(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await handle_mode(update, context, "blog")
+
+
+async def handle_linkedin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await handle_mode(update, context, "linkedin")
+
+
+async def handle_all(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await handle_mode(update, context, "all")
 
 
 async def handle_save(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -181,6 +216,9 @@ async def handle_discard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 def _build_app(token: str):
     app = ApplicationBuilder().token(token).build()
+    app.add_handler(CommandHandler("blog", handle_blog))
+    app.add_handler(CommandHandler("linkedin", handle_linkedin_cmd))
+    app.add_handler(CommandHandler("all", handle_all))
     app.add_handler(CommandHandler("save", handle_save))
     app.add_handler(CommandHandler("discard", handle_discard))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))

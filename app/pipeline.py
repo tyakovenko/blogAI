@@ -114,6 +114,7 @@ def generate_post(
     url: str,
     notes: str,
     tone: str = "professional",
+    formats: list[str] | None = None,
 ) -> dict:
     """
     Full pipeline: fetch article → build prompt → generate all output formats.
@@ -124,9 +125,10 @@ def generate_post(
     article_text = fetch_article(url)
     base_prompt = build_prompt(article_text, notes, tone)
 
+    active_formats = formats if formats is not None else OUTPUT_FORMATS
     drafts = {}
     total_latency = 0.0
-    for fmt in OUTPUT_FORMATS:
+    for fmt in active_formats:
         suffix = FORMAT_CONFIGS[fmt]["suffix"]
         prompt = f"{base_prompt}\n\n{suffix}" if suffix else base_prompt
         text, latency = generate_for_format(prompt, fmt)
