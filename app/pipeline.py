@@ -6,7 +6,9 @@ Fallback LLM: Claude Sonnet (TODO: wire up once API credits are added)
 """
 
 import os
+import re
 import time
+import urllib.parse
 from typing import Optional
 
 import trafilatura
@@ -139,11 +141,22 @@ def generate_post(
 
     return {
         "post": post.strip(),
-        "model_used": "mistral-7b",
+        "model_used": MISTRAL_MODEL.split("/")[-1],
         "latency": round(latency, 2),
         "article_preview": article_text[:300] + "...",
         "error_log": None,
     }
+
+
+def build_linkedin_url(notes: str) -> str:
+    """
+    Build a Kagi Translate URL to LinkedIn-ify the user's raw notes.
+    Uses notes directly as the seed — they're already brief and capture the core idea.
+    """
+    # Strip trailing punctuation/whitespace that causes browser URL parsing issues
+    seed = re.sub(r'[\s.!?,]+$', '', notes.strip())
+    encoded = urllib.parse.quote(seed)
+    return f"https://translate.kagi.com/?from=en&to=linkedin&text={encoded}"
 
 
 if __name__ == "__main__":

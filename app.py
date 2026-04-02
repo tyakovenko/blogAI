@@ -4,7 +4,7 @@ Entry point for HuggingFace Spaces and local development.
 """
 
 import gradio as gr
-from app.pipeline import generate_post
+from app.pipeline import generate_post, build_linkedin_url
 
 
 def run_pipeline(url: str, notes: str, tone: str) -> tuple[str, str]:
@@ -51,11 +51,25 @@ with gr.Blocks(title="BlogAI") as demo:
                 lines=20,
             )
             status_output = gr.Markdown("")
+            linkedin_link = gr.HTML("")
+            linkedin_btn = gr.Button("LinkedIn-ify via Kagi ↗", variant="secondary")
+
+    def make_linkedin_link(notes: str) -> str:
+        if not notes.strip():
+            return ""
+        url = build_linkedin_url(notes)
+        return f'<a href="{url}" target="_blank" style="font-size:14px">Open in Kagi Translate ↗</a>'
 
     generate_btn.click(
         fn=run_pipeline,
         inputs=[url_input, notes_input, tone_selector],
         outputs=[post_output, status_output],
+    )
+
+    linkedin_btn.click(
+        fn=make_linkedin_link,
+        inputs=[notes_input],
+        outputs=[linkedin_link],
     )
 
     gr.Markdown(
