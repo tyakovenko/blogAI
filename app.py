@@ -54,6 +54,7 @@ with gr.Blocks(title="BlogAI") as demo:
             status_output = gr.Markdown("")
             linkedin_link = gr.HTML("")
             linkedin_btn = gr.Button("LinkedIn-ify via Kagi ↗", variant="secondary")
+            gr.Markdown("✨ experimental ✨")
 
     def make_linkedin_link(notes: str) -> str:
         if not notes.strip():
