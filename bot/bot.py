@@ -2,21 +2,25 @@
 BlogAI Telegram bot — capture article URL + notes from mobile.
 Send one message: URL on any line, notes around it.
 The bot parses them out and saves to the Notion drafts queue.
+
+Can run standalone (python -m bot.bot) or embedded in the Gradio app
+via start_polling_in_background().
 """
 
+import asyncio
 import logging
 import os
 import re
+import threading
 
 from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
 
-from notion_queue import save_draft
+from .notion_queue import save_draft
 
 load_dotenv()
 
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 ALLOWED_USER_ID = int(os.getenv("TELEGRAM_ALLOWED_USER_ID", "0"))
 
 logging.basicConfig(
@@ -36,7 +40,7 @@ def parse_message(text: str) -> tuple[str, str]:
     """
     url_match = URL_RE.search(text)
     if url_match:
-        url = url_match.group(0).rstrip(".,)")  # strip common trailing punctuation
+        url = url_match.group(0).rstrip(".,)")
         notes = URL_RE.sub("", text).strip()
     else:
         url = ""
@@ -65,11 +69,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     try:
         notion_url = save_draft(url=url, notes=notes)
         if url and notes:
-            reply = f"Saved. URL + notes queued in Notion."
+            reply = "Saved. URL + notes queued in Notion."
         elif url:
-            reply = f"Saved. URL queued (no notes)."
+            reply = "Saved. URL queued (no notes)."
         else:
-            reply = f"Saved as notes (no URL detected)."
+            reply = "Saved as notes (no URL detected)."
         await update.message.reply_text(reply)
         logger.info("Saved draft — url=%s notes_len=%d notion=%s", url, len(notes), notion_url)
     except Exception as e:
@@ -77,15 +81,37 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await update.message.reply_text(f"Failed to save: {e}")
 
 
-def main() -> None:
-    if not TELEGRAM_BOT_TOKEN:
-        raise RuntimeError("TELEGRAM_BOT_TOKEN not set")
-
-    app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
+def _build_app(token: str):
+    app = ApplicationBuilder().token(token).build()
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    logger.info("Bot polling...")
-    app.run_polling()
+    return app
+
+
+def start_polling_in_background() -> None:
+    """Start the bot in a background daemon thread alongside the Gradio app."""
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    if not token:
+        logger.warning("TELEGRAM_BOT_TOKEN not set — Telegram bot will not start")
+        return
+
+    async def _run() -> None:
+        app = _build_app(token)
+        async with app:
+            await app.start()
+            await app.updater.start_polling()
+            await asyncio.Event().wait()  # run until process exits
+
+    def _thread() -> None:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(_run())
+
+    threading.Thread(target=_thread, daemon=True, name="telegram-bot").start()
+    logger.info("Telegram bot polling started in background thread")
 
 
 if __name__ == "__main__":
-    main()
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    if not token:
+        raise RuntimeError("TELEGRAM_BOT_TOKEN not set")
+    _build_app(token).run_polling()

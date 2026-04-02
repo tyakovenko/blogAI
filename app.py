@@ -6,6 +6,7 @@ Entry point for HuggingFace Spaces and local development.
 import gradio as gr
 from app.pipeline import generate_post, build_linkedin_url
 from app.config import TONES, DEFAULT_TONE, ACTIVE_MODEL_DISPLAY, OUTPUT_FORMATS
+from bot.bot import start_polling_in_background
 
 
 def run_pipeline(url: str, notes: str, tone: str) -> tuple:
@@ -87,6 +88,8 @@ with gr.Blocks(title="BlogAI") as demo:
         "**Future:** Telegram note capture · One-click publish to Medium / Dev.to · Engagement analytics"
     )
 
+
+start_polling_in_background()
 
 if __name__ == "__main__":
     demo.launch(theme=gr.themes.Soft())
