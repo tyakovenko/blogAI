@@ -223,6 +223,18 @@ async def handle_discard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     await update.message.reply_text("Draft discarded.")
 
 
+# ── Error handler ─────────────────────────────────────────────────────────────
+
+async def handle_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Global fallback: any unhandled exception in any handler lands here.
+    Always replies so the user sees the failure instead of silence.
+    """
+    logger.error("Unhandled exception in handler", exc_info=context.error)
+    if isinstance(update, Update) and update.message:
+        await update.message.reply_text(f"Something went wrong: {context.error}")
+
+
 # ── App builder ───────────────────────────────────────────────────────────────
 
 def _build_app(token: str):
@@ -233,6 +245,7 @@ def _build_app(token: str):
     app.add_handler(CommandHandler("save", handle_save))
     app.add_handler(CommandHandler("discard", handle_discard))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.add_error_handler(handle_error)
     return app
 
 

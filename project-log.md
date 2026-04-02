@@ -24,6 +24,8 @@
 | No local LLM — hardware is Intel UHD only, 16GB RAM | Discovered via hardware check | — |
 | No Vercel/Next.js — not on approved framework list | Assignment requirement | — |
 | Never hardcode model names, tone lists, or UI labels — all config lives in `app/config.py` | User feedback | — |
+| Telegram bot: always register `add_error_handler` — never rely on per-handler try/except alone. Unhandled exceptions are swallowed silently by python-telegram-bot without it. | Recurring silent failure bug | — |
+| Telegram bot: never use `parse_mode="Markdown"` unless input is sanitized. Telegram silently drops the entire message if the text contains unescaped `*` or `_`. | Silent message drop bug | — |
 | Never hardcode calculated values (percentages, counts, scores) in reports or UI — always derive from data | User feedback | — |
 | All Notion settings live at notion.so — never give confident UI navigation steps without flagging uncertainty | User feedback | — |
 
