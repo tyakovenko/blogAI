@@ -55,6 +55,8 @@ def save_generated_draft(url: str, notes: str, blog_post: str = "", linkedin: st
         "Notes": {"rich_text": [{"text": {"content": notes[:2000]}}]},
         "Status": {"select": {"name": "Draft Generated"}},
     }
+    if blog_post:
+        properties["Blog Post"] = {"rich_text": [{"text": {"content": blog_post[:2000]}}]}
     if linkedin:
         properties["LinkedIn"] = {"rich_text": [{"text": {"content": linkedin[:2000]}}]}
 

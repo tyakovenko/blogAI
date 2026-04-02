@@ -26,6 +26,7 @@
 | Never hardcode model names, tone lists, or UI labels — all config lives in `app/config.py` | User feedback | — |
 | Telegram bot: always register `add_error_handler` — never rely on per-handler try/except alone. Unhandled exceptions are swallowed silently by python-telegram-bot without it. | Recurring silent failure bug | — |
 | Telegram bot: never use `parse_mode="Markdown"` unless input is sanitized. Telegram silently drops the entire message if the text contains unescaped `*` or `_`. | Silent message drop bug | — |
+| Bot draft access: always use `drafts.get("Blog Post", "")` and `drafts.get("LinkedIn", "")` — never hardcode dict keys. In single-mode sessions only one key exists. | Recurring KeyError in save + correction handlers | — |
 | Never hardcode calculated values (percentages, counts, scores) in reports or UI — always derive from data | User feedback | — |
 | All Notion settings live at notion.so — never give confident UI navigation steps without flagging uncertainty | User feedback | — |
 
@@ -64,6 +65,7 @@
 ## Backlog
 
 - [x] **Notion bot connection** — resolved. Created new `blogAI-bot` internal integration in Claude Brain workspace, connected via Blog Posts database `...` → Connections menu. Fixed property name `userDefined:URL` → `URL` in `bot/notion_queue.py`.
+- [ ] **LinkedIn prompt tuning** — Qwen generates blog-length content for LinkedIn format. Tighten the LinkedIn system prompt and suffix in `app/config.py` FORMAT_CONFIGS to enforce brevity and LinkedIn-specific voice.
 - [ ] **Model selector** — add dropdown to UI for switching between available HF models. Options defined in `app/config.py`.
 - [ ] **Post length control** — add short/medium/long option to UI. Map to word count ranges in `app/config.py`.
 - [ ] **Paywalled/JS-rendered URLs** — add clearer user-facing error. Consider playwright fallback.
