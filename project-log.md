@@ -64,6 +64,13 @@
 
 ---
 
+## Notion Writes
+- gradio-background-services — created — daemon thread pattern for background services in Gradio
+- notion-integration-types — created — internal vs external integrations, 2000-char property limit
+- hf-spaces-operations — created — secrets API, deployment triggers, free tier sleep behaviour
+
+---
+
 ## Blockers
 - [ ] **Claude API** — key has no credits. Add at console.anthropic.com → Billing. Then uncomment `anthropic` in requirements.txt and restore fallback logic in `app/pipeline.py`.
 - [ ] **Telegram bot → Notion** — bot crashes with "Could not find database" because telegramBot integration isn't connected to Blog Posts DB. Bot is deployed and running on HF Space but saving to Notion is broken until this is resolved.
