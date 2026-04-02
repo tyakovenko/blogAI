@@ -82,3 +82,20 @@ HuggingFace Spaces with Gradio provides a public URL at no cost. The app is mobi
 | Dynamic model routing | Premature for v1 | Yes, once Claude fallback is active |
 | One-click publish to Medium/Dev.to | Out of scope for assignment | Yes, strong v2 feature |
 | LoRA fine-tune on Mistral 7B | Optional — adds report depth | Yes, Google Colab T4 free |
+
+---
+
+## Kagi Translate — Zero-Auth LinkedIn Integration
+
+**Finding:** Kagi Translate (`translate.kagi.com`) exposes a URL-parameter interface that pre-populates the translation form without requiring authentication. The `from` and `to` parameters accept non-standard language codes including `linkedin`, enabling style rewriting rather than language translation.
+
+**Endpoint discovered:** `POST https://translate.kagi.com/api/translate` — returns `{"error":"Not authenticated"}` without a session. Kagi's public API key covers search only, not translate.
+
+**Workaround:** Construct a URL with `?from=en&to=linkedin&text=<encoded>` and open it in a new tab. The page loads with the text pre-filled and runs the translation client-side. No API key, no scraping, no auth required.
+
+**Implementation detail:** The input is the user's raw notes (not the full generated post). Notes are already short and capture the core idea — no additional summarization step needed. Trailing punctuation is stripped before encoding to prevent browser URL-parsing artifacts.
+
+**Tested output** (input: *"Anthropic released a terminal pet feature on April Fools day. I hope I can add customization and it doesn't go away"*):
+> 🚀 Anthropic just dropped a terminal pet feature for April Fools! 🐾 It's these kinds of innovative, out-of-the-box features that keep the tech community buzzing. 💡 I'm already thinking about the possibilities — I'd love to see some deep customization options added to the mix! 🛠️ #TechInnovation #ProductLaunch #DeveloperExperience
+
+**Report angle:** Frame this as a creative integration pattern — using a web tool's URL interface as a lightweight API substitute when no official API exists. Relevant to the "Implementation Plan" and "Expected Outcomes" sections.
