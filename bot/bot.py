@@ -124,16 +124,26 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         linkedin = drafts.get("LinkedIn", "")
 
         if blog:
-            await update.message.reply_text(f"*Blog Post*\n\n{blog}", parse_mode="Markdown")
+            await update.message.reply_text(f"Blog Post:\n\n{blog}")
         if linkedin:
-            await update.message.reply_text(f"*LinkedIn*\n\n{linkedin}", parse_mode="Markdown")
+            await update.message.reply_text(f"LinkedIn:\n\n{linkedin}")
         await update.message.reply_text(
             f"Generated with {result['model_used']} in {result['latency']}s\n\n"
             "Reply to edit. /save to save to Notion. /discard to cancel."
         )
 
     elif state == "reviewing":
-        current_draft = _conversations[chat_id]["drafts"]["Blog Post"]
+        conv = _conversations[chat_id]
+        mode = conv.get("mode", "all")
+        # Corrections apply to the primary draft for this mode
+        draft_key = "LinkedIn" if mode == "linkedin" else "Blog Post"
+
+        try:
+            current_draft = conv["drafts"][draft_key]
+        except KeyError:
+            await update.message.reply_text(f"No {draft_key} draft found. Send a URL to start over.")
+            return
+
         await update.message.reply_text("Applying correction...")
 
         loop = asyncio.get_event_loop()
@@ -144,8 +154,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await update.message.reply_text(f"Correction failed: {e}")
             return
 
-        _conversations[chat_id]["drafts"]["Blog Post"] = updated
-        await update.message.reply_text(f"*Blog Post*\n\n{updated}", parse_mode="Markdown")
+        _conversations[chat_id]["drafts"][draft_key] = updated
+        label = "LinkedIn" if mode == "linkedin" else "Blog Post"
+        await update.message.reply_text(f"{label}:\n\n{updated}")
         await update.message.reply_text("Reply to edit more. /save to save. /discard to cancel.")
 
 
