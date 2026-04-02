@@ -2,7 +2,7 @@ gradio>=4.0.0
 trafilatura>=1.6.0
 huggingface-hub>=0.20.0
 python-dotenv>=1.0.0
-# anthropic>=0.25.0  # uncomment when API credits are added
+anthropic>=0.25.0
 
 # Telegram bot (bot/)
 python-telegram-bot>=21.0

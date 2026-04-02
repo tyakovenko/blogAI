@@ -19,6 +19,50 @@ def _get_client() -> Client:
     return _client
 
 
+def _text_blocks(text: str) -> list[dict]:
+    """Split text into Notion paragraph blocks, max 2000 chars each."""
+    blocks = []
+    for para in text.split("\n\n"):
+        para = para.strip()
+        if not para:
+            continue
+        # Notion rich_text max is 2000 chars per element
+        for chunk in [para[i:i+2000] for i in range(0, len(para), 2000)]:
+            blocks.append({
+                "object": "block",
+                "type": "paragraph",
+                "paragraph": {"rich_text": [{"type": "text", "text": {"content": chunk}}]},
+            })
+    return blocks
+
+
+def save_generated_draft(url: str, notes: str, blog_post: str, linkedin: str) -> str:
+    """
+    Save a fully generated draft to Notion.
+    Blog post goes into the page body. LinkedIn goes into the LinkedIn property.
+    Status is set to Draft Generated.
+    """
+    database_id = os.getenv("NOTION_DATABASE_ID")
+    if not database_id:
+        raise RuntimeError("NOTION_DATABASE_ID not set")
+
+    client = _get_client()
+    title = url if url else (notes[:80] + "..." if len(notes) > 80 else notes)
+
+    page = client.pages.create(
+        parent={"database_id": database_id},
+        properties={
+            "Name": {"title": [{"text": {"content": title}}]},
+            "URL": {"url": url or None},
+            "Notes": {"rich_text": [{"text": {"content": notes[:2000]}}]},
+            "LinkedIn": {"rich_text": [{"text": {"content": linkedin[:2000]}}]},
+            "Status": {"select": {"name": "Draft Generated"}},
+        },
+        children=_text_blocks(blog_post),
+    )
+    return page["url"]
+
+
 def save_draft(url: str, notes: str) -> str:
     """
     Save a draft to the Notion queue.
@@ -35,7 +79,7 @@ def save_draft(url: str, notes: str) -> str:
         parent={"database_id": database_id},
         properties={
             "Name": {"title": [{"text": {"content": title}}]},
-            "userDefined:URL": {"url": url or None},
+            "URL": {"url": url or None},
             "Notes": {"rich_text": [{"text": {"content": notes}}]},
             "Status": {"select": {"name": "Inbox"}},
         },

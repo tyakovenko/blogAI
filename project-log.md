@@ -10,6 +10,11 @@
 
 ---
 
+## Report Notes
+- **HF Space free tier sleep limitation:** The Telegram bot runs as a background thread inside the HF Space. When the space goes idle (no Gradio UI traffic), HF puts it to sleep and the thread dies. Incoming Telegram messages are silently dropped until someone wakes the space by visiting the UI. This is an architectural constraint of hosting a persistent service on a free-tier platform — acceptable for personal/demo use, but not suitable for production reliability. Mitigation options: upgrade to paid HF tier, use a keep-alive ping service, or migrate the bot to a dedicated always-on host (e.g. a small VPS or Docker container).
+
+---
+
 ## Constraints
 
 | Constraint | Source | Failure Artifact |
@@ -56,7 +61,7 @@
 
 ## Backlog
 
-- [ ] **Notion bot connection** — telegramBot internal integration can't be connected to Blog Posts database via UI. Connections menu only shows external integrations. Share menu also doesn't surface it. Investigate Notion internal integration connection flow at notion.so/my-integrations.
+- [x] **Notion bot connection** — resolved. Created new `blogAI-bot` internal integration in Claude Brain workspace, connected via Blog Posts database `...` → Connections menu. Fixed property name `userDefined:URL` → `URL` in `bot/notion_queue.py`.
 - [ ] **Model selector** — add dropdown to UI for switching between available HF models. Options defined in `app/config.py`.
 - [ ] **Post length control** — add short/medium/long option to UI. Map to word count ranges in `app/config.py`.
 - [ ] **Paywalled/JS-rendered URLs** — add clearer user-facing error. Consider playwright fallback.
