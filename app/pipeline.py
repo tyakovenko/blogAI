@@ -16,9 +16,9 @@ from huggingface_hub import InferenceClient
 from dotenv import load_dotenv
 
 try:
-    from .config import ACTIVE_MODEL, ACTIVE_MODEL_DISPLAY, DEFAULT_TONE, TONE_INSTRUCTIONS
+    from .config import ACTIVE_MODEL, ACTIVE_MODEL_DISPLAY, DEFAULT_TONE, TONE_INSTRUCTIONS, FORMAT_CONFIGS, OUTPUT_FORMATS
 except ImportError:
-    from config import ACTIVE_MODEL, ACTIVE_MODEL_DISPLAY, DEFAULT_TONE, TONE_INSTRUCTIONS
+    from config import ACTIVE_MODEL, ACTIVE_MODEL_DISPLAY, DEFAULT_TONE, TONE_INSTRUCTIONS, FORMAT_CONFIGS, OUTPUT_FORMATS
 
 load_dotenv()
 
@@ -89,17 +89,21 @@ VOICE:
 - Do not summarize the article. Use it as backdrop only."""
 
 
-def generate_with_mistral(prompt: str) -> tuple[str, float]:
-    """Call Qwen via HF Inference API. Returns (text, latency_seconds)."""
+def generate_for_format(prompt: str, format_name: str) -> tuple[str, float]:
+    """Call Qwen via HF Inference API for a specific output format. Returns (text, latency_seconds)."""
+    fmt_config = FORMAT_CONFIGS[format_name]
+    system = fmt_config["system"] or SYSTEM_PROMPT
+    max_tokens = fmt_config["max_tokens"]
+
     client = InferenceClient(token=HF_TOKEN)
     start = time.time()
     response = client.chat_completion(
         messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": system},
             {"role": "user", "content": prompt},
         ],
         model=ACTIVE_MODEL,
-        max_tokens=900,
+        max_tokens=max_tokens,
         temperature=0.85,
     )
     latency = time.time() - start
@@ -112,19 +116,27 @@ def generate_post(
     tone: str = "professional",
 ) -> dict:
     """
-    Full pipeline: fetch article → build prompt → generate post.
+    Full pipeline: fetch article → build prompt → generate all output formats.
 
-    Returns dict with keys: post, model_used, latency, article_preview, error_log
+    Returns dict with keys: drafts, model_used, latency, article_preview, error_log
+    drafts is a dict keyed by format name (matches OUTPUT_FORMATS).
     """
     article_text = fetch_article(url)
-    prompt = build_prompt(article_text, notes, tone)
+    base_prompt = build_prompt(article_text, notes, tone)
 
-    post, latency = generate_with_mistral(prompt)
+    drafts = {}
+    total_latency = 0.0
+    for fmt in OUTPUT_FORMATS:
+        suffix = FORMAT_CONFIGS[fmt]["suffix"]
+        prompt = f"{base_prompt}\n\n{suffix}" if suffix else base_prompt
+        text, latency = generate_for_format(prompt, fmt)
+        drafts[fmt] = text.strip()
+        total_latency += latency
 
     return {
-        "post": post.strip(),
+        "drafts": drafts,
         "model_used": ACTIVE_MODEL_DISPLAY,
-        "latency": round(latency, 2),
+        "latency": round(total_latency, 2),
         "article_preview": article_text[:300] + "...",
         "error_log": None,
     }
@@ -156,4 +168,5 @@ if __name__ == "__main__":
     result = generate_post(test_url, test_notes)
     print(f"\nModel: {result['model_used']} | Latency: {result['latency']}s")
     print(f"\nArticle preview:\n{result['article_preview']}")
-    print(f"\n--- Generated Post ---\n{result['post']}")
+    for fmt, draft in result["drafts"].items():
+        print(f"\n--- {fmt} ---\n{draft}")

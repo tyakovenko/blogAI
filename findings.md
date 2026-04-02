@@ -82,6 +82,7 @@ HuggingFace Spaces with Gradio provides a public URL at no cost. The app is mobi
 | Dynamic model routing | Premature for v1 | Yes, once Claude fallback is active |
 | One-click publish to Medium/Dev.to | Out of scope for assignment | Yes, strong v2 feature |
 | LoRA fine-tune on Mistral 7B | Optional — adds report depth | Yes, Google Colab T4 free |
+| Engagement analytics | Premature — need posting habit first | Yes, v3: track views/likes per post via platform APIs (Medium Stats API, LinkedIn Analytics API, Dev.to built-in), surface in a simple dashboard to close the feedback loop between "what I wrote" and "what resonated" |
 
 ---
 

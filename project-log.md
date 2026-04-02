@@ -36,12 +36,24 @@
 ---
 
 ## Failed Approaches
-*None yet.*
+
+| Tried | Error | Why wrong | Fix |
+|---|---|---|---|
+| Smoke test with anthropic.com URL | trafilatura fetch fails — JS-rendered SPA | trafilatura can't scrape JS-heavy pages without a headless browser | Need to test with a plain HTML news article or add playwright/selenium fallback |
+| Smoke test with NYT URL | trafilatura fetch fails — paywalled content | trafilatura cannot bypass subscription walls | Subscription-blocked URLs will silently fail; need to surface a clearer error to user and document this limitation. Consider adding a note in the UI that paywalled URLs won't work. |
 
 ---
 
 ## Broken Skills
 *None.*
+
+---
+
+## Backlog
+
+- [ ] **Model selector** — add dropdown to UI for switching between available HF models. Options defined in `app/config.py`. Useful for comparing output quality without code changes.
+- [ ] **Post length control** — add short/medium/long option to UI. Map to word count ranges in `app/config.py` and pass as instruction in the prompt.
+- [ ] **Paywalled/JS-rendered URLs** — trafilatura silently fails. Add clearer user-facing error message. Consider playwright fallback for JS pages. Document paywall limitation in UI.
 
 ---
 

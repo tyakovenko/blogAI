@@ -5,24 +5,27 @@ Entry point for HuggingFace Spaces and local development.
 
 import gradio as gr
 from app.pipeline import generate_post, build_linkedin_url
-from app.config import TONES, DEFAULT_TONE, ACTIVE_MODEL_DISPLAY
+from app.config import TONES, DEFAULT_TONE, ACTIVE_MODEL_DISPLAY, OUTPUT_FORMATS
 
 
-def run_pipeline(url: str, notes: str, tone: str) -> tuple[str, str]:
-    """Gradio handler. Returns (post_draft, status_line)."""
+def run_pipeline(url: str, notes: str, tone: str) -> tuple:
+    """Gradio handler. Returns (*drafts_in_format_order, status_line)."""
+    empty = ("",) * len(OUTPUT_FORMATS)
+
     if not url.strip():
-        return "", "Please enter an article URL."
+        return empty + ("Please enter an article URL.",)
     if not notes.strip():
-        return "", "Please add at least a few notes or reflections."
+        return empty + ("Please add at least a few notes or reflections.",)
 
     try:
         result = generate_post(url.strip(), notes.strip(), tone)
         status = f"Generated with **{result['model_used']}** in {result['latency']}s"
-        return result["post"], status
+        drafts = tuple(result["drafts"].get(fmt, "") for fmt in OUTPUT_FORMATS)
+        return drafts + (status,)
     except ValueError as e:
-        return "", f"Error: {e}"
+        return empty + (f"Error: {e}",)
     except Exception as e:
-        return "", f"Unexpected error: {e}"
+        return empty + (f"Unexpected error: {e}",)
 
 
 with gr.Blocks(title="BlogAI") as demo:
@@ -47,14 +50,19 @@ with gr.Blocks(title="BlogAI") as demo:
             generate_btn = gr.Button("Generate draft", variant="primary")
 
         with gr.Column(scale=1):
-            post_output = gr.Textbox(
-                label="Blog post draft",
-                lines=20,
-            )
+            # One output box per format — add formats in app/config.py OUTPUT_FORMATS
+            output_boxes = [
+                gr.Textbox(
+                    label=fmt,
+                    lines=15 if i == 0 else 8,
+                )
+                for i, fmt in enumerate(OUTPUT_FORMATS)
+            ]
             status_output = gr.Markdown("")
             linkedin_link = gr.HTML("")
-            linkedin_btn = gr.Button("LinkedIn-ify via Kagi ↗", variant="secondary")
-            gr.Markdown("✨ experimental ✨")
+            with gr.Row():
+                linkedin_btn = gr.Button("LinkedIn-ify via Kagi ↗", variant="secondary")
+            gr.Markdown("<div style='text-align:center'>✨ experimental ✨</div>")
 
     def make_linkedin_link(notes: str) -> str:
         if not notes.strip():
@@ -65,7 +73,7 @@ with gr.Blocks(title="BlogAI") as demo:
     generate_btn.click(
         fn=run_pipeline,
         inputs=[url_input, notes_input, tone_selector],
-        outputs=[post_output, status_output],
+        outputs=output_boxes + [status_output],
     )
 
     linkedin_btn.click(
@@ -76,7 +84,7 @@ with gr.Blocks(title="BlogAI") as demo:
 
     gr.Markdown(
         "---\n"
-        "**Future:** Telegram note capture · One-click publish to Medium / Dev.to"
+        "**Future:** Telegram note capture · One-click publish to Medium / Dev.to · Engagement analytics"
     )
 
 
