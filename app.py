@@ -5,11 +5,11 @@ Entry point for HuggingFace Spaces and local development.
 
 import gradio as gr
 from app.pipeline import generate_post, build_linkedin_url
-from app.config import TONES, DEFAULT_TONE, ACTIVE_MODEL_DISPLAY, OUTPUT_FORMATS
+from app.config import TONES, DEFAULT_TONE, OUTPUT_FORMATS, AVAILABLE_MODELS, DEFAULT_MODEL_KEY
 from bot.bot import start_polling_in_background
 
 
-def run_pipeline(url: str, notes: str, tone: str) -> tuple:
+def run_pipeline(url: str, notes: str, tone: str, model_key: str) -> tuple:
     """Gradio handler. Returns (*drafts_in_format_order, status_line)."""
     empty = ("",) * len(OUTPUT_FORMATS)
 
@@ -19,7 +19,7 @@ def run_pipeline(url: str, notes: str, tone: str) -> tuple:
         return empty + ("Please add at least a few notes or reflections.",)
 
     try:
-        result = generate_post(url.strip(), notes.strip(), tone)
+        result = generate_post(url.strip(), notes.strip(), tone, model_key=model_key)
         status = f"Generated with **{result['model_used']}** in {result['latency']}s"
         drafts = tuple(result["drafts"].get(fmt, "") for fmt in OUTPUT_FORMATS)
         return drafts + (status,)
@@ -30,7 +30,7 @@ def run_pipeline(url: str, notes: str, tone: str) -> tuple:
 
 
 with gr.Blocks(title="BlogAI") as demo:
-    gr.Markdown(f"# BlogAI\nTurn an article + your notes into a polished blog post draft.\n\n*Model: {ACTIVE_MODEL_DISPLAY}*")
+    gr.Markdown("# BlogAI\nTurn an article + your notes into a polished blog post draft.")
 
     with gr.Row():
         with gr.Column(scale=1):
@@ -48,10 +48,14 @@ with gr.Blocks(title="BlogAI") as demo:
                 value=DEFAULT_TONE,
                 label="Tone",
             )
+            model_selector = gr.Dropdown(
+                choices=list(AVAILABLE_MODELS.keys()),
+                value=DEFAULT_MODEL_KEY,
+                label="Model",
+            )
             generate_btn = gr.Button("Generate draft", variant="primary")
 
         with gr.Column(scale=1):
-            # One output box per format — add formats in app/config.py OUTPUT_FORMATS
             output_boxes = [
                 gr.Textbox(
                     label=fmt,
@@ -73,7 +77,7 @@ with gr.Blocks(title="BlogAI") as demo:
 
     generate_btn.click(
         fn=run_pipeline,
-        inputs=[url_input, notes_input, tone_selector],
+        inputs=[url_input, notes_input, tone_selector, model_selector],
         outputs=output_boxes + [status_output],
     )
 

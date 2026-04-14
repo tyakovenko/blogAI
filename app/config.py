@@ -3,14 +3,31 @@ Single source of truth for all configurable values.
 UI and pipeline both import from here — never duplicate these elsewhere.
 """
 
-# Active model — change here, propagates everywhere
-ACTIVE_MODEL = "Qwen/Qwen2.5-7B-Instruct"
+# Available models: display name → {id, provider}
+# provider "hf" → HuggingFace Inference API
+# provider "anthropic" → Anthropic API (requires ANTHROPIC_API_KEY)
+AVAILABLE_MODELS: dict[str, dict] = {
+    "Gemma 2 9B":   {"id": "google/gemma-2-9b-it",                    "provider": "hf"},
+    "Qwen 2.5 7B":  {"id": "Qwen/Qwen2.5-7B-Instruct",               "provider": "hf"},
+    "Mistral 7B":   {"id": "mistralai/Mistral-7B-Instruct-v0.3",      "provider": "hf"},
+    "Claude Haiku": {"id": "claude-haiku-4-5-20251001",               "provider": "anthropic"},
+}
 
-# Display name derived from model ID — never hardcode separately
-ACTIVE_MODEL_DISPLAY = ACTIVE_MODEL.split("/")[-1]
+DEFAULT_MODEL_KEY = "Gemma 2 9B"
+
+# Telegram shortcut → model key (case-insensitive prefix matching in bot)
+MODEL_SHORTCUTS: dict[str, str] = {
+    "gemma":   "Gemma 2 9B",
+    "qwen":    "Qwen 2.5 7B",
+    "mistral": "Mistral 7B",
+    "haiku":   "Claude Haiku",
+}
+
+# Fallback model when the selected HF model fails (rate limit, unavailable, etc.)
+# Only used if ANTHROPIC_API_KEY is set. Skipped silently if not.
+CLAUDE_FALLBACK_MODEL = "claude-haiku-4-5-20251001"
 
 # Tone options: key → label shown in UI
-# To add a tone: add an entry here + its instruction in TONE_INSTRUCTIONS below
 TONES: dict[str, str] = {
     "blog_social": "Blog / Social",
     "professional": "Professional",
@@ -19,19 +36,14 @@ TONES: dict[str, str] = {
 
 DEFAULT_TONE = "blog_social"
 
-# Fallback model used when HF Inference is unavailable.
-# Haiku is the same model used for corrections in the bot — consistent and cheap.
-CLAUDE_FALLBACK_MODEL = "claude-haiku-4-5-20251001"
-
 # Output formats — one LLM call + Notion column per entry.
 # To add a format: add an entry here + its prompt in FORMAT_PROMPTS below.
 # Then run: python scripts/sync_notion_schema.py
 OUTPUT_FORMATS: list[str] = ["Blog Post", "LinkedIn"]
 
-# Tone instructions passed to the LLM
 # Per-format system prompts and user prompt suffixes.
 # "system" → replaces the default SYSTEM_PROMPT for this format
-# "suffix" → appended to the shared user prompt
+# "suffix" → appended to the user prompt
 FORMAT_CONFIGS: dict[str, dict] = {
     "Blog Post": {
         "system": None,  # uses default SYSTEM_PROMPT in pipeline.py

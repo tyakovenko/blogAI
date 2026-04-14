@@ -1,8 +1,8 @@
 """
 Core pipeline: article URL + notes → blog post draft.
 
-Primary LLM: configured in app/config.py
-Fallback LLM: Claude Sonnet (TODO: wire up once API credits are added)
+Primary LLM: selected per-request, defaults to DEFAULT_MODEL_KEY in config.
+Fallback: Claude Haiku if an HF model fails and ANTHROPIC_API_KEY is set.
 """
 
 import logging
@@ -10,7 +10,6 @@ import os
 import re
 import time
 import urllib.parse
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -25,9 +24,15 @@ except ImportError:
     _ANTHROPIC_AVAILABLE = False
 
 try:
-    from .config import ACTIVE_MODEL, ACTIVE_MODEL_DISPLAY, DEFAULT_TONE, TONE_INSTRUCTIONS, FORMAT_CONFIGS, OUTPUT_FORMATS, CLAUDE_FALLBACK_MODEL
+    from .config import (
+        AVAILABLE_MODELS, DEFAULT_MODEL_KEY, CLAUDE_FALLBACK_MODEL,
+        DEFAULT_TONE, TONE_INSTRUCTIONS, FORMAT_CONFIGS, OUTPUT_FORMATS,
+    )
 except ImportError:
-    from config import ACTIVE_MODEL, ACTIVE_MODEL_DISPLAY, DEFAULT_TONE, TONE_INSTRUCTIONS, FORMAT_CONFIGS, OUTPUT_FORMATS, CLAUDE_FALLBACK_MODEL
+    from config import (
+        AVAILABLE_MODELS, DEFAULT_MODEL_KEY, CLAUDE_FALLBACK_MODEL,
+        DEFAULT_TONE, TONE_INSTRUCTIONS, FORMAT_CONFIGS, OUTPUT_FORMATS,
+    )
 
 load_dotenv()
 
@@ -117,18 +122,39 @@ VOICE:
 - Do not summarize the article. Use it as backdrop only."""
 
 
-def generate_for_format(prompt: str, format_name: str) -> tuple[str, float]:
-    """Call the primary model (Qwen via HF) for a specific output format.
+def generate_for_format(
+    prompt: str,
+    format_name: str,
+    model_key: str = DEFAULT_MODEL_KEY,
+) -> tuple[str, float]:
+    """Generate output for one format using the selected model.
 
-    Falls back to Claude Haiku if the HF call fails (rate limit, model unavailable, etc.).
-    Returns (text, latency_seconds). model_used is logged but not returned — caller gets
-    the display name from ACTIVE_MODEL_DISPLAY or the fallback label via generate_post().
+    HF models: try HF Inference first, fall back to Claude Haiku if it fails.
+    Anthropic models: call Claude directly, no fallback.
+    Returns (text, latency_seconds).
     """
     fmt_config = FORMAT_CONFIGS[format_name]
     system = fmt_config["system"] or SYSTEM_PROMPT
     max_tokens = fmt_config["max_tokens"]
 
-    # Primary: Qwen via HF Inference API
+    model_config = AVAILABLE_MODELS[model_key]
+    provider = model_config["provider"]
+    model_id = model_config["id"]
+
+    if provider == "anthropic":
+        if not (_ANTHROPIC_AVAILABLE and ANTHROPIC_API_KEY):
+            raise RuntimeError("Claude Haiku selected but ANTHROPIC_API_KEY is not set.")
+        client = _anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        start = time.time()
+        response = client.messages.create(
+            model=model_id,
+            max_tokens=max_tokens,
+            system=system,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return response.content[0].text, time.time() - start
+
+    # HF provider — try primary, fall back to Claude Haiku on failure
     try:
         client = InferenceClient(token=HF_TOKEN)
         start = time.time()
@@ -137,44 +163,42 @@ def generate_for_format(prompt: str, format_name: str) -> tuple[str, float]:
                 {"role": "system", "content": system},
                 {"role": "user", "content": prompt},
             ],
-            model=ACTIVE_MODEL,
+            model=model_id,
             max_tokens=max_tokens,
             temperature=0.85,
         )
-        latency = time.time() - start
-        return response.choices[0].message.content, latency
+        return response.choices[0].message.content, time.time() - start
     except Exception as hf_err:
-        logger.warning("HF Inference failed (%s), falling back to Claude", hf_err)
+        logger.warning("HF Inference failed for %s (%s), falling back to Claude Haiku", model_key, hf_err)
 
-    # Fallback: Claude Haiku — only if key is available
     if not (_ANTHROPIC_AVAILABLE and ANTHROPIC_API_KEY):
         raise RuntimeError(
-            f"HF Inference failed and no Claude API key is set — cannot generate {format_name}."
+            f"HF Inference failed for {model_key} and ANTHROPIC_API_KEY is not set — cannot generate {format_name}."
         )
 
-    claude_client = _anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    client = _anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     start = time.time()
-    response = claude_client.messages.create(
+    response = client.messages.create(
         model=CLAUDE_FALLBACK_MODEL,
         max_tokens=max_tokens,
         system=system,
         messages=[{"role": "user", "content": prompt}],
     )
-    latency = time.time() - start
-    return response.content[0].text, latency
+    return response.content[0].text, time.time() - start
 
 
 def generate_post(
     url: str,
     notes: str,
-    tone: str = "professional",
+    tone: str = DEFAULT_TONE,
     formats: list[str] | None = None,
+    model_key: str = DEFAULT_MODEL_KEY,
 ) -> dict:
     """
     Full pipeline: fetch article → build prompt → generate all output formats.
 
-    Returns dict with keys: drafts, model_used, latency, article_preview, error_log
-    drafts is a dict keyed by format name (matches OUTPUT_FORMATS).
+    Returns dict with keys: drafts, model_used, latency, article_preview, error_log.
+    drafts is keyed by format name (matches OUTPUT_FORMATS).
     """
     article_text = fetch_article(url)
 
@@ -182,17 +206,16 @@ def generate_post(
     drafts = {}
     total_latency = 0.0
     for fmt in active_formats:
-        # Each format gets its own prompt — LinkedIn uses a stripped prompt to prevent blog-length bleed
         base_prompt = build_prompt(article_text, notes, tone, fmt=fmt)
         suffix = FORMAT_CONFIGS[fmt]["suffix"]
         prompt = f"{base_prompt}\n\n{suffix}" if suffix else base_prompt
-        text, latency = generate_for_format(prompt, fmt)
+        text, latency = generate_for_format(prompt, fmt, model_key=model_key)
         drafts[fmt] = text.strip()
         total_latency += latency
 
     return {
         "drafts": drafts,
-        "model_used": ACTIVE_MODEL_DISPLAY,
+        "model_used": model_key,
         "latency": round(total_latency, 2),
         "article_preview": article_text[:300] + "...",
         "error_log": None,
@@ -200,29 +223,25 @@ def generate_post(
 
 
 def build_linkedin_url(notes: str) -> str:
-    """
-    Build a Kagi Translate URL to LinkedIn-ify the user's raw notes.
-    Uses notes directly as the seed — they're already brief and capture the core idea.
-    """
-    # Strip trailing punctuation/whitespace that causes browser URL parsing issues
+    """Build a Kagi Translate URL to LinkedIn-ify the user's raw notes."""
     seed = re.sub(r'[\s.!?,]+$', '', notes.strip())
     encoded = urllib.parse.quote(seed)
     return f"https://translate.kagi.com/?from=en&to=linkedin&text={encoded}"
 
 
 if __name__ == "__main__":
-    # Quick smoke test — replace with a real URL and notes to validate
     import sys
 
     test_url = sys.argv[1] if len(sys.argv) > 1 else None
     test_notes = sys.argv[2] if len(sys.argv) > 2 else "This was an interesting read."
+    test_model = sys.argv[3] if len(sys.argv) > 3 else DEFAULT_MODEL_KEY
 
     if not test_url:
-        print("Usage: python pipeline.py <article_url> [notes]")
+        print("Usage: python pipeline.py <article_url> [notes] [model_key]")
         sys.exit(1)
 
     print(f"Fetching article from {test_url}...")
-    result = generate_post(test_url, test_notes)
+    result = generate_post(test_url, test_notes, model_key=test_model)
     print(f"\nModel: {result['model_used']} | Latency: {result['latency']}s")
     print(f"\nArticle preview:\n{result['article_preview']}")
     for fmt, draft in result["drafts"].items():

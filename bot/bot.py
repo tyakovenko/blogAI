@@ -23,6 +23,7 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
 
 from app.pipeline import generate_post
+from app.config import AVAILABLE_MODELS, DEFAULT_MODEL_KEY, MODEL_SHORTCUTS
 from .notion_queue import save_generated_draft
 
 load_dotenv()
@@ -63,8 +64,8 @@ def _parse_message(text: str) -> tuple[str, str]:
     return url, notes
 
 
-def _run_pipeline(url: str, notes: str, mode: str = "all") -> dict:
-    return generate_post(url, notes, tone="blog_social", formats=MODE_FORMATS[mode])
+def _run_pipeline(url: str, notes: str, mode: str = "all", model_key: str = DEFAULT_MODEL_KEY) -> dict:
+    return generate_post(url, notes, tone="blog_social", formats=MODE_FORMATS[mode], model_key=model_key)
 
 
 def _apply_correction(draft: str, instruction: str) -> str:
@@ -107,11 +108,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             return
 
         mode = _conversations.get(chat_id, {}).get("mode", "all")
-        await update.message.reply_text(f"Running pipeline ({mode} mode)...")
+        model_key = _conversations.get(chat_id, {}).get("model_key", DEFAULT_MODEL_KEY)
+        await update.message.reply_text(f"Running pipeline ({mode} mode, {model_key})...")
 
         loop = asyncio.get_event_loop()
         try:
-            result = await loop.run_in_executor(_executor, _run_pipeline, url, notes, mode)
+            result = await loop.run_in_executor(_executor, _run_pipeline, url, notes, mode, model_key)
         except Exception as e:
             logger.error("Pipeline error: %s", e)
             await update.message.reply_text(f"Pipeline failed: {e}")
@@ -184,6 +186,38 @@ async def handle_all(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     await handle_mode(update, context, "all")
 
 
+async def handle_model(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
+
+    if not _is_authorized(user_id):
+        return
+
+    args = context.args  # words after /model
+
+    if not args:
+        # Show current model and available options
+        current = _conversations.get(chat_id, {}).get("model_key", DEFAULT_MODEL_KEY)
+        options = "\n".join(f"  {shortcut} → {key}" for shortcut, key in MODEL_SHORTCUTS.items())
+        await update.message.reply_text(
+            f"Current model: {current}\n\nAvailable:\n{options}\n\nUsage: /model gemma"
+        )
+        return
+
+    shortcut = args[0].lower()
+    model_key = MODEL_SHORTCUTS.get(shortcut)
+
+    if not model_key:
+        await update.message.reply_text(
+            f"Unknown model '{shortcut}'. Options: {', '.join(MODEL_SHORTCUTS.keys())}"
+        )
+        return
+
+    existing = _conversations.get(chat_id, {})
+    _conversations[chat_id] = {**existing, "model_key": model_key}
+    await update.message.reply_text(f"Model set to {model_key}.")
+
+
 async def handle_save(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.effective_user.id
     chat_id = update.effective_chat.id
@@ -243,6 +277,7 @@ def _build_app(token: str):
     app.add_handler(CommandHandler("blog", handle_blog))
     app.add_handler(CommandHandler("linkedin", handle_linkedin_cmd))
     app.add_handler(CommandHandler("all", handle_all))
+    app.add_handler(CommandHandler("model", handle_model))
     app.add_handler(CommandHandler("save", handle_save))
     app.add_handler(CommandHandler("discard", handle_discard))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
