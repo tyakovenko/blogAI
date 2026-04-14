@@ -7,20 +7,16 @@ UI and pipeline both import from here — never duplicate these elsewhere.
 # provider "hf" → HuggingFace Inference API
 # provider "anthropic" → Anthropic API (requires ANTHROPIC_API_KEY)
 AVAILABLE_MODELS: dict[str, dict] = {
-    "Gemma 2 9B":   {"id": "google/gemma-2-9b-it",                    "provider": "hf"},
-    "Qwen 2.5 7B":  {"id": "Qwen/Qwen2.5-7B-Instruct",               "provider": "hf"},
-    "Mistral 7B":   {"id": "mistralai/Mistral-7B-Instruct-v0.3",      "provider": "hf"},
-    "Claude Haiku": {"id": "claude-haiku-4-5-20251001",               "provider": "anthropic"},
+    "Qwen 2.5 7B":  {"id": "Qwen/Qwen2.5-7B-Instruct", "provider": "hf"},
+    "Claude Haiku": {"id": "claude-haiku-4-5-20251001", "provider": "anthropic"},
 }
 
-DEFAULT_MODEL_KEY = "Gemma 2 9B"
+DEFAULT_MODEL_KEY = "Qwen 2.5 7B"
 
 # Telegram shortcut → model key (case-insensitive prefix matching in bot)
 MODEL_SHORTCUTS: dict[str, str] = {
-    "gemma":   "Gemma 2 9B",
-    "qwen":    "Qwen 2.5 7B",
-    "mistral": "Mistral 7B",
-    "haiku":   "Claude Haiku",
+    "qwen":  "Qwen 2.5 7B",
+    "haiku": "Claude Haiku",
 }
 
 # Fallback model when the selected HF model fails (rate limit, unavailable, etc.)
