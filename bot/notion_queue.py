@@ -47,7 +47,23 @@ def save_generated_draft(url: str, notes: str, blog_post: str = "", linkedin: st
         raise RuntimeError("NOTION_DATABASE_ID not set")
 
     client = _get_client()
-    title = url if url else (notes[:80] + "..." if len(notes) > 80 else notes)
+
+    # Extract title from blog post — first "Title: ..." line, or first non-empty line.
+    # Fall back to truncated notes, then URL.
+    title = None
+    if blog_post:
+        for line in blog_post.splitlines():
+            stripped = line.strip()
+            if stripped.lower().startswith("title:"):
+                title = stripped[len("title:"):].strip()
+                break
+            elif stripped:
+                title = stripped[:120]
+                break
+    if not title:
+        title = (notes[:80] + "...") if len(notes) > 80 else notes
+    if not title:
+        title = url
 
     properties = {
         "Name": {"title": [{"text": {"content": title}}]},
