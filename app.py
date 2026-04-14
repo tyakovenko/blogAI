@@ -15,12 +15,12 @@ def run_pipeline(url: str, notes: str, tone: str, model_key: str) -> tuple:
 
     if not url.strip():
         return empty + ("Please enter an article URL.",)
-    if not notes.strip():
-        return empty + ("Please add at least a few notes or reflections.",)
 
     try:
         result = generate_post(url.strip(), notes.strip(), tone, model_key=model_key)
         status = f"Generated with **{result['model_used']}** in {result['latency']}s"
+        if result.get("auto_notes"):
+            status += f"\n\n*No notes provided — used AI summary:*\n{result['auto_notes']}"
         drafts = tuple(result["drafts"].get(fmt, "") for fmt in OUTPUT_FORMATS)
         return drafts + (status,)
     except ValueError as e:

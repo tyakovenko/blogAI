@@ -187,6 +187,58 @@ def generate_for_format(
     return response.content[0].text, time.time() - start
 
 
+def summarize_article(article_text: str, model_key: str = DEFAULT_MODEL_KEY) -> tuple[str, float]:
+    """Generate a short summary of the article to use as notes when none are provided.
+
+    Returns (summary_text, latency_seconds).
+    Uses the same model routing as generate_for_format so behaviour is consistent.
+    """
+    model_config = AVAILABLE_MODELS[model_key]
+    provider = model_config["provider"]
+    model_id = model_config["id"]
+    max_tokens = 300
+
+    system = "You extract the key ideas from articles concisely."
+    prompt = (
+        f"Read this article and extract 3–5 bullet points capturing the most interesting "
+        f"claims, arguments, or findings. Be specific — no generic summaries.\n\n"
+        f"{article_text[:4000]}"
+    )
+
+    if provider == "anthropic":
+        if not (_ANTHROPIC_AVAILABLE and ANTHROPIC_API_KEY):
+            raise RuntimeError("Claude selected but ANTHROPIC_API_KEY is not set.")
+        client = _anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        start = time.time()
+        response = client.messages.create(
+            model=model_id, max_tokens=max_tokens, system=system,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return response.content[0].text.strip(), time.time() - start
+
+    try:
+        client = InferenceClient(token=HF_TOKEN)
+        start = time.time()
+        response = client.chat_completion(
+            messages=[{"role": "system", "content": system}, {"role": "user", "content": prompt}],
+            model=model_id, max_tokens=max_tokens, temperature=0.5,
+        )
+        return response.choices[0].message.content.strip(), time.time() - start
+    except Exception as hf_err:
+        logger.warning("HF summarization failed (%s), falling back to Claude Haiku", hf_err)
+
+    if not (_ANTHROPIC_AVAILABLE and ANTHROPIC_API_KEY):
+        raise RuntimeError("HF summarization failed and ANTHROPIC_API_KEY is not set.")
+
+    client = _anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    start = time.time()
+    response = client.messages.create(
+        model=CLAUDE_FALLBACK_MODEL, max_tokens=max_tokens, system=system,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return response.content[0].text.strip(), time.time() - start
+
+
 def generate_post(
     url: str,
     notes: str,
@@ -197,14 +249,23 @@ def generate_post(
     """
     Full pipeline: fetch article → build prompt → generate all output formats.
 
-    Returns dict with keys: drafts, model_used, latency, article_preview, error_log.
-    drafts is keyed by format name (matches OUTPUT_FORMATS).
+    If notes is empty, generates an AI summary of the article and uses that instead.
+    Returns dict with keys: drafts, model_used, latency, article_preview, error_log,
+    and auto_notes (populated only when notes were auto-generated, else None).
     """
     article_text = fetch_article(url)
 
+    auto_notes = None
+    if not notes.strip():
+        auto_notes, summary_latency = summarize_article(article_text, model_key=model_key)
+        notes = auto_notes
+        logger.info("No notes provided — used AI summary as notes")
+    else:
+        summary_latency = 0.0
+
     active_formats = formats if formats is not None else OUTPUT_FORMATS
     drafts = {}
-    total_latency = 0.0
+    total_latency = summary_latency
     for fmt in active_formats:
         base_prompt = build_prompt(article_text, notes, tone, fmt=fmt)
         suffix = FORMAT_CONFIGS[fmt]["suffix"]
@@ -218,6 +279,7 @@ def generate_post(
         "model_used": model_key,
         "latency": round(total_latency, 2),
         "article_preview": article_text[:300] + "...",
+        "auto_notes": auto_notes,
         "error_log": None,
     }
 

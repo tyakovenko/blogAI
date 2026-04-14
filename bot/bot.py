@@ -125,6 +125,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         blog = drafts.get("Blog Post", "")
         linkedin = drafts.get("LinkedIn", "")
 
+        if result.get("auto_notes"):
+            await update.message.reply_text(f"No notes provided — used AI summary:\n\n{result['auto_notes']}")
         if blog:
             await update.message.reply_text(f"Blog Post:\n\n{blog}")
         if linkedin:
