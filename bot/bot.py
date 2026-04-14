@@ -297,6 +297,13 @@ def start_polling_in_background() -> None:
         async with app:
             await app.start()
             await app.updater.start_polling()
+            # Notify the allowed user that the bot is back online.
+            # Can't message when down — but we can message on recovery.
+            if ALLOWED_USER_ID:
+                try:
+                    await app.bot.send_message(chat_id=ALLOWED_USER_ID, text="Bot is online.")
+                except Exception as e:
+                    logger.warning("Could not send startup notification: %s", e)
             await asyncio.Event().wait()
 
     def _thread() -> None:

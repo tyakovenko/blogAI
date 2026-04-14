@@ -80,7 +80,7 @@ The LinkedIn-ify button (experimental) is a separate tool — it sends your raw 
 
 ## Known limitations
 
-- **Telegram requires the HF Space to be awake.** The bot runs as a background thread inside the HF Space process. If the Space goes idle (no web traffic for ~15 min on free tier), the thread dies and incoming Telegram messages are silently dropped until someone loads the Space UI. Wake it up by visiting the Space URL before sending messages.
+- **Telegram requires the HF Space to be awake.** The bot runs as a background thread inside the HF Space process. If the Space goes idle (~15 min of no web traffic on free tier), the thread dies and incoming messages are silently dropped — no error, no queue, no retry. The bot sends a "Bot is online" message when the Space wakes and it recovers, so you'll know when it's back. To wake it: visit the Space URL before sending messages. For reliable always-on capture: (a) pipe Telegram → Notion via Make.com or Zapier (free tier, no code); (b) migrate the bot to a webhook deploy on Render or Fly.io independent of the Space.
 - Paywalled and JS-rendered pages will fail — the app returns an error. Open-access sources (dev blogs, newsletters, arXiv, company pages) work fine.
-- Qwen 7B (free tier) follows formatting rules imperfectly — expect occasional headers or bullet points despite instructions. Falls back to Claude Haiku automatically if HF Inference is unavailable.
+- Generation model quality varies — HF free tier models follow formatting rules imperfectly. Falls back to Claude Haiku automatically if HF Inference is unavailable (requires `ANTHROPIC_API_KEY` set in Space secrets).
 - The app generates drafts only — it does not post to Medium, LinkedIn, or anywhere else.
