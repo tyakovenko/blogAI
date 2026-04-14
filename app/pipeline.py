@@ -126,12 +126,13 @@ def generate_for_format(
     prompt: str,
     format_name: str,
     model_key: str = DEFAULT_MODEL_KEY,
-) -> tuple[str, float]:
+) -> tuple[str, float, str]:
     """Generate output for one format using the selected model.
 
     HF models: try HF Inference first, fall back to Claude Haiku if it fails.
     Anthropic models: call Claude directly, no fallback.
-    Returns (text, latency_seconds).
+    Returns (text, latency_seconds, actual_model_key).
+    actual_model_key may differ from model_key if fallback fired.
     """
     fmt_config = FORMAT_CONFIGS[format_name]
     system = fmt_config["system"] or SYSTEM_PROMPT
@@ -152,9 +153,10 @@ def generate_for_format(
             system=system,
             messages=[{"role": "user", "content": prompt}],
         )
-        return response.content[0].text, time.time() - start
+        return response.content[0].text, time.time() - start, model_key
 
     # HF provider — try primary, fall back to Claude Haiku on failure
+    hf_error = None
     try:
         client = InferenceClient(token=HF_TOKEN)
         start = time.time()
@@ -167,15 +169,17 @@ def generate_for_format(
             max_tokens=max_tokens,
             temperature=0.85,
         )
-        return response.choices[0].message.content, time.time() - start
+        return response.choices[0].message.content, time.time() - start, model_key
     except Exception as hf_err:
-        logger.warning("HF Inference failed for %s (%s), falling back to Claude Haiku", model_key, hf_err)
+        hf_error = hf_err
+        logger.error("HF Inference failed for %s: %s", model_key, hf_err)
 
     if not (_ANTHROPIC_AVAILABLE and ANTHROPIC_API_KEY):
         raise RuntimeError(
-            f"HF Inference failed for {model_key} and ANTHROPIC_API_KEY is not set — cannot generate {format_name}."
+            f"HF Inference failed for {model_key} ({hf_error}) and ANTHROPIC_API_KEY is not set."
         )
 
+    logger.warning("Falling back to Claude Haiku for %s", format_name)
     client = _anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     start = time.time()
     response = client.messages.create(
@@ -184,7 +188,7 @@ def generate_for_format(
         system=system,
         messages=[{"role": "user", "content": prompt}],
     )
-    return response.content[0].text, time.time() - start
+    return response.content[0].text, time.time() - start, f"Claude Haiku (fallback from {model_key})"
 
 
 def summarize_article(article_text: str, model_key: str = DEFAULT_MODEL_KEY) -> tuple[str, float]:
@@ -225,7 +229,8 @@ def summarize_article(article_text: str, model_key: str = DEFAULT_MODEL_KEY) -> 
         )
         return response.choices[0].message.content.strip(), time.time() - start
     except Exception as hf_err:
-        logger.warning("HF summarization failed (%s), falling back to Claude Haiku", hf_err)
+        logger.error("HF summarization failed for %s: %s", model_key, hf_err)
+        logger.warning("Falling back to Claude Haiku for summarization")
 
     if not (_ANTHROPIC_AVAILABLE and ANTHROPIC_API_KEY):
         raise RuntimeError("HF summarization failed and ANTHROPIC_API_KEY is not set.")
@@ -266,17 +271,23 @@ def generate_post(
     active_formats = formats if formats is not None else OUTPUT_FORMATS
     drafts = {}
     total_latency = summary_latency
+    actual_models = set()
     for fmt in active_formats:
         base_prompt = build_prompt(article_text, notes, tone, fmt=fmt)
         suffix = FORMAT_CONFIGS[fmt]["suffix"]
         prompt = f"{base_prompt}\n\n{suffix}" if suffix else base_prompt
-        text, latency = generate_for_format(prompt, fmt, model_key=model_key)
+        text, latency, actual_model = generate_for_format(prompt, fmt, model_key=model_key)
         drafts[fmt] = text.strip()
         total_latency += latency
+        actual_models.add(actual_model)
+
+    # If all formats used the same model, report it cleanly; otherwise list them.
+    model_used = actual_models.pop() if len(actual_models) == 1 else ", ".join(actual_models)
 
     return {
         "drafts": drafts,
-        "model_used": model_key,
+        "model_used": model_used,
+        "model_requested": model_key,
         "latency": round(total_latency, 2),
         "article_preview": article_text[:300] + "...",
         "auto_notes": auto_notes,

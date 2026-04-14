@@ -131,9 +131,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await update.message.reply_text(f"Blog Post:\n\n{blog}")
         if linkedin:
             await update.message.reply_text(f"LinkedIn:\n\n{linkedin}")
+        model_line = f"Generated with {result['model_used']} in {result['latency']}s"
+        if result.get("model_requested") and result["model_requested"] != result["model_used"]:
+            model_line += f"\n⚠️ {result['model_requested']} failed — fell back to Haiku"
         await update.message.reply_text(
-            f"Generated with {result['model_used']} in {result['latency']}s\n\n"
-            "Reply to edit. /save to save to Notion. /discard to cancel."
+            f"{model_line}\n\nReply to edit. /save to save to Notion. /discard to cancel."
         )
 
     elif state == "reviewing":
