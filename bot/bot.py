@@ -204,7 +204,7 @@ async def handle_model(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         current = _conversations.get(chat_id, {}).get("model_key", DEFAULT_MODEL_KEY)
         options = "\n".join(f"  {shortcut} → {key}" for shortcut, key in MODEL_SHORTCUTS.items())
         await update.message.reply_text(
-            f"Current model: {current}\n\nAvailable:\n{options}\n\nUsage: /model gemma"
+            f"Current model: {current}\n\nAvailable:\n{options}\n\nUsage: /model qwen"
         )
         return
 

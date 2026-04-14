@@ -74,7 +74,7 @@
 - [ ] **Llama 3.1 8B** — `meta-llama/Meta-Llama-3.1-8B-Instruct` has HF provider support (Novita + 3 others). Blocked only on accepting the license at huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct with the HF account that owns `HF_TOKEN`. One config line to add once unblocked.
 - [ ] **PDF file support** — accept PDF uploads as an alternative to article URL. Extract text via `pypdf` or `pdfplumber`, feed extracted text into `build_prompt` in place of `fetch_article()` output. Surface in Gradio UI as an optional file upload input.
 - [ ] **Evals repo** — companion evaluation study lives at `~/Desktop/blogAI_evals` (separate git repo). Keep separate: evals run on Colab with heavy ML deps (BERTScore, sentence-transformers, NLI) incompatible with HF Spaces `requirements.txt`. Link in README. Evals call HF/Anthropic APIs directly — no code dependency on this repo.
-- [ ] **Model selector** — add dropdown to UI for switching between available HF models (Qwen 7B, Gemma 9B). Options defined in `app/config.py`. Unblock once Gemma evaluation is done.
+- [ ] **Model selector** — dropdown is live (Qwen + Haiku). Extend once Gemma (Google AI Studio) or Llama (HF license) are unblocked.
 - [ ] **Post length control** — add short/medium/long option to UI. Map to word count ranges in `app/config.py`.
 - [ ] **Paywalled/JS-rendered URLs** — add clearer user-facing error. Consider playwright fallback.
 - [ ] **Save drafts back to Notion from web app** — add "Save to Notion" button in Gradio UI. Creates/updates Blog Posts entry with generated drafts, flips Status to Draft Generated.
