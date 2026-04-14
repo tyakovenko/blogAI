@@ -19,6 +19,10 @@ TONES: dict[str, str] = {
 
 DEFAULT_TONE = "blog_social"
 
+# Fallback model used when HF Inference is unavailable.
+# Haiku is the same model used for corrections in the bot — consistent and cheap.
+CLAUDE_FALLBACK_MODEL = "claude-haiku-4-5-20251001"
+
 # Output formats — one LLM call + Notion column per entry.
 # To add a format: add an entry here + its prompt in FORMAT_PROMPTS below.
 # Then run: python scripts/sync_notion_schema.py

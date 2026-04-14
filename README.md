@@ -80,6 +80,7 @@ The LinkedIn-ify button (experimental) is a separate tool — it sends your raw 
 
 ## Known limitations
 
-- Paywalled and JS-rendered pages will fail silently — the app returns an error
-- Qwen 7B (free tier) follows formatting rules imperfectly — expect headers and bullet points occasionally despite instructions. A Claude API backend (coming once credits are added) will fix this.
-- The Telegram bot runs inside the HF Space — if the Space is sleeping, messages will not be received until the Space wakes up
+- **Telegram requires the HF Space to be awake.** The bot runs as a background thread inside the HF Space process. If the Space goes idle (no web traffic for ~15 min on free tier), the thread dies and incoming Telegram messages are silently dropped until someone loads the Space UI. Wake it up by visiting the Space URL before sending messages.
+- Paywalled and JS-rendered pages will fail — the app returns an error. Open-access sources (dev blogs, newsletters, arXiv, company pages) work fine.
+- Qwen 7B (free tier) follows formatting rules imperfectly — expect occasional headers or bullet points despite instructions. Falls back to Claude Haiku automatically if HF Inference is unavailable.
+- The app generates drafts only — it does not post to Medium, LinkedIn, or anywhere else.

@@ -5,24 +5,34 @@ Primary LLM: configured in app/config.py
 Fallback LLM: Claude Sonnet (TODO: wire up once API credits are added)
 """
 
+import logging
 import os
 import re
 import time
 import urllib.parse
 from typing import Optional
 
+logger = logging.getLogger(__name__)
+
 import trafilatura
 from huggingface_hub import InferenceClient
 from dotenv import load_dotenv
 
 try:
-    from .config import ACTIVE_MODEL, ACTIVE_MODEL_DISPLAY, DEFAULT_TONE, TONE_INSTRUCTIONS, FORMAT_CONFIGS, OUTPUT_FORMATS
+    import anthropic as _anthropic
+    _ANTHROPIC_AVAILABLE = True
 except ImportError:
-    from config import ACTIVE_MODEL, ACTIVE_MODEL_DISPLAY, DEFAULT_TONE, TONE_INSTRUCTIONS, FORMAT_CONFIGS, OUTPUT_FORMATS
+    _ANTHROPIC_AVAILABLE = False
+
+try:
+    from .config import ACTIVE_MODEL, ACTIVE_MODEL_DISPLAY, DEFAULT_TONE, TONE_INSTRUCTIONS, FORMAT_CONFIGS, OUTPUT_FORMATS, CLAUDE_FALLBACK_MODEL
+except ImportError:
+    from config import ACTIVE_MODEL, ACTIVE_MODEL_DISPLAY, DEFAULT_TONE, TONE_INSTRUCTIONS, FORMAT_CONFIGS, OUTPUT_FORMATS, CLAUDE_FALLBACK_MODEL
 
 load_dotenv()
 
 HF_TOKEN = os.getenv("HF_TOKEN")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 
 
 def fetch_article(url: str) -> str:
@@ -36,7 +46,25 @@ def fetch_article(url: str) -> str:
     return text
 
 
-def build_prompt(article_text: str, notes: str, tone: str = DEFAULT_TONE) -> str:
+def build_prompt(article_text: str, notes: str, tone: str = DEFAULT_TONE, fmt: str = "Blog Post") -> str:
+    """Build the user-facing prompt for a given format.
+
+    LinkedIn gets a stripped-down prompt — no 'write a blog post' framing, no example.
+    The LinkedIn system prompt in FORMAT_CONFIGS handles all style constraints.
+    Mixing blog framing with the LinkedIn system caused blog-length bleed.
+    """
+    if fmt == "LinkedIn":
+        return f"""Write a LinkedIn post using the source article as backdrop and the author's notes as the core perspective.
+
+Source article:
+{article_text[:4000]}
+
+Author's notes:
+{notes}
+
+Write the LinkedIn post now:"""
+
+    # Blog Post (and any other format) — full framing + tone instructions
     tone_instruction = TONE_INSTRUCTIONS.get(tone, "")
 
     blog_social_example = """
@@ -90,24 +118,50 @@ VOICE:
 
 
 def generate_for_format(prompt: str, format_name: str) -> tuple[str, float]:
-    """Call Qwen via HF Inference API for a specific output format. Returns (text, latency_seconds)."""
+    """Call the primary model (Qwen via HF) for a specific output format.
+
+    Falls back to Claude Haiku if the HF call fails (rate limit, model unavailable, etc.).
+    Returns (text, latency_seconds). model_used is logged but not returned — caller gets
+    the display name from ACTIVE_MODEL_DISPLAY or the fallback label via generate_post().
+    """
     fmt_config = FORMAT_CONFIGS[format_name]
     system = fmt_config["system"] or SYSTEM_PROMPT
     max_tokens = fmt_config["max_tokens"]
 
-    client = InferenceClient(token=HF_TOKEN)
+    # Primary: Qwen via HF Inference API
+    try:
+        client = InferenceClient(token=HF_TOKEN)
+        start = time.time()
+        response = client.chat_completion(
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": prompt},
+            ],
+            model=ACTIVE_MODEL,
+            max_tokens=max_tokens,
+            temperature=0.85,
+        )
+        latency = time.time() - start
+        return response.choices[0].message.content, latency
+    except Exception as hf_err:
+        logger.warning("HF Inference failed (%s), falling back to Claude", hf_err)
+
+    # Fallback: Claude Haiku — only if key is available
+    if not (_ANTHROPIC_AVAILABLE and ANTHROPIC_API_KEY):
+        raise RuntimeError(
+            f"HF Inference failed and no Claude API key is set — cannot generate {format_name}."
+        )
+
+    claude_client = _anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     start = time.time()
-    response = client.chat_completion(
-        messages=[
-            {"role": "system", "content": system},
-            {"role": "user", "content": prompt},
-        ],
-        model=ACTIVE_MODEL,
+    response = claude_client.messages.create(
+        model=CLAUDE_FALLBACK_MODEL,
         max_tokens=max_tokens,
-        temperature=0.85,
+        system=system,
+        messages=[{"role": "user", "content": prompt}],
     )
     latency = time.time() - start
-    return response.choices[0].message.content, latency
+    return response.content[0].text, latency
 
 
 def generate_post(
@@ -123,12 +177,13 @@ def generate_post(
     drafts is a dict keyed by format name (matches OUTPUT_FORMATS).
     """
     article_text = fetch_article(url)
-    base_prompt = build_prompt(article_text, notes, tone)
 
     active_formats = formats if formats is not None else OUTPUT_FORMATS
     drafts = {}
     total_latency = 0.0
     for fmt in active_formats:
+        # Each format gets its own prompt — LinkedIn uses a stripped prompt to prevent blog-length bleed
+        base_prompt = build_prompt(article_text, notes, tone, fmt=fmt)
         suffix = FORMAT_CONFIGS[fmt]["suffix"]
         prompt = f"{base_prompt}\n\n{suffix}" if suffix else base_prompt
         text, latency = generate_for_format(prompt, fmt)
