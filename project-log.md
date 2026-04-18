@@ -93,11 +93,11 @@
 - hf-spaces-operations — updated — clarified silent message drop; added mitigation options (Make.com, webhook, Fly.io)
 - llm-api-model-availability — created — HF serverless provider check before adding models to production config
 - llm-pipeline-input-fallback — created — auto-generate missing user inputs via LLM and surface what was generated
+- hf-spaces-operations — updated — portable GRADIO_SHARE env var pattern for share=True
 
 ---
 
 ## Blockers
-- [ ] **Claude API** — key has no credits. Add at console.anthropic.com → Billing. Then uncomment `anthropic` in requirements.txt and restore fallback logic in `app/pipeline.py`.
 - [ ] **Telegram bot → Notion** — bot crashes with "Could not find database" because telegramBot integration isn't connected to Blog Posts DB. Bot is deployed and running on HF Space but saving to Notion is broken until this is resolved.
 
 ---
@@ -114,7 +114,7 @@
 - 2026-04-14 — Wired Claude Haiku fallback in `pipeline.py`: HF call wrapped in try/except, falls back to `CLAUDE_FALLBACK_MODEL` from config if HF fails. `ANTHROPIC_API_KEY` read from env.
 - 2026-04-14 — Backlog updated: Gemma model, PDF support, model selector prereqs.
 
-## Project Sync (2026-04-14)
-- Detail page: https://app.notion.com/p/342de01ad2ab8114817dcfa20a74bee5 (exists — no update)
-- Database: Last worked on 2026-04-14, Last action, Status Active — updated
+## Project Sync (2026-04-18)
+- Detail page: https://www.notion.so/342de01ad2ab8114817dcfa20a74bee5 (exists — no update)
+- Database: Last worked on 2026-04-18, Last action, Status Active — updated
 - Status: ✓ Complete

@@ -3,6 +3,7 @@ BlogAI — Gradio web interface.
 Entry point for HuggingFace Spaces and local development.
 """
 
+import os
 import gradio as gr
 from app.pipeline import generate_post, build_linkedin_url
 from app.config import TONES, DEFAULT_TONE, OUTPUT_FORMATS, AVAILABLE_MODELS, DEFAULT_MODEL_KEY
