@@ -42,7 +42,7 @@
 | Mistral 7B via HF Inference API as primary | Free, open-source, satisfies assignment requirement | Mixtral 8x22B — impossible locally, expensive on cloud | 2026-04-01 |
 | Claude Sonnet as fallback | Better creative output, already have API access | GPT-4 — no existing access | 2026-04-01 |
 | trafilatura for article scraping | Clean extraction, handles paywalls gracefully | BeautifulSoup — more boilerplate | 2026-04-01 |
-| Telegram bot runs inside HF Space as background thread | Zero extra infrastructure, already free and deployed | Railway — 30-day trial, env vars not propagating, overkill | 2026-04-02 |
+| Telegram bot runs inside HF Space as background thread | Zero extra infrastructure, already free and deployed | Separate worker service — overkill | 2026-04-02 |
 | Multi-format output (Blog Post + LinkedIn) per generate call | One click, two usable drafts; formats defined in config | Single combined prompt — Qwen 7B can't follow multi-format in one pass | 2026-04-02 |
 | Blog draft saved as Notion page body, LinkedIn as property | Rich text property has 2000 char limit; blog posts exceed it | Both as properties — would truncate | 2026-04-02 |
 
@@ -54,7 +54,7 @@
 |---|---|---|---|
 | Smoke test with anthropic.com URL | trafilatura fetch fails — JS-rendered SPA | trafilatura can't scrape JS-heavy pages without a headless browser | Add playwright/selenium fallback |
 | Smoke test with NYT URL | trafilatura fetch fails — paywalled content | trafilatura cannot bypass subscription walls | Surface clearer error in UI; document paywall limitation |
-| Railway worker for Telegram bot | TELEGRAM_BOT_TOKEN not set despite env vars configured | Railway doesn't propagate env vars to restarted deployments; new deploy also failed | Abandoned Railway, moved bot to HF Space background thread |
+| Separate worker service for Telegram bot | Env vars not propagating; new deploy also failed | External worker adds infra complexity with no benefit | Moved bot to HF Space background thread |
 | Connecting telegramBot Notion integration via Connections menu | Integration doesn't appear in search | Notion Connections menu only shows external OAuth integrations (Google Drive, Figma, etc.), not internal integrations | Unknown — tried Share button too, not found. Needs investigation next session. |
 
 ---

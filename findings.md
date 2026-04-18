@@ -77,7 +77,7 @@ HuggingFace Spaces with Gradio provides a public URL at no cost. The app is mobi
 
 | Idea | Why cut | Worth revisiting? |
 |---|---|---|
-| Telegram note capture bot | Adds infra complexity, zero grade value | Yes — ~50 lines, Railway/Fly.io free tier |
+| Telegram note capture bot | Adds infra complexity, zero grade value | Yes — ~50 lines, Fly.io free tier |
 | Local Mixtral 8x22B hosting | Hardware impossible (Intel UHD, 16GB RAM, no GPU) | Only if hardware upgrades |
 | Dynamic model routing | Premature for v1 | Yes, once Claude fallback is active |
 | One-click publish to Medium/Dev.to | Out of scope for assignment | Yes, strong v2 feature |
