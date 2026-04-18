@@ -96,4 +96,4 @@ with gr.Blocks(title="BlogAI") as demo:
 start_polling_in_background()
 
 if __name__ == "__main__":
-    demo.launch(theme=gr.themes.Soft())
+    demo.launch(theme=gr.themes.Soft(), share=True)
