@@ -16,6 +16,8 @@ You read something interesting. You have thoughts. BlogAI turns that combination
 
 Built with Gradio + Qwen 2.5 7B via HuggingFace Inference API.
 
+**[Live on HuggingFace Spaces](https://huggingface.co/spaces/tyakovenko/blogAI)**
+
 ---
 
 ## What this is for
