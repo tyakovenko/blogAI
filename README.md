@@ -55,12 +55,26 @@ The bot extracts the first URL it finds and treats the rest as your notes. It sa
 
 If you have no URL yet — notes only is fine too. The bot will save them without a link.
 
-### Generate (web app)
+### Generate (web app — HuggingFace)
 
 1. Open the BlogAI Space
 2. Paste the article URL and your notes
 3. Pick a tone (Blog / Social is the default)
 4. Click **Generate draft**
+
+### Run locally
+
+```bash
+git clone https://github.com/tyakovenko/blogAI.git
+cd blogAI
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+export HF_TOKEN=your_hf_token
+export ANTHROPIC_API_KEY=your_anthropic_key  # optional fallback
+python app.py
+```
+
+Opens at `http://localhost:7860`. No `GRADIO_SHARE` needed — the tunnel is only enabled on HF Spaces.
 
 You get two outputs:
 - **Blog Post** — 300–500 words, personal voice, plain paragraphs
