@@ -3,6 +3,7 @@ BlogAI — Gradio web interface.
 Deployed on HuggingFace Spaces.
 """
 
+import os
 import gradio as gr
 from pipeline import generate_post
 
@@ -65,4 +66,4 @@ with gr.Blocks(title="BlogAI") as demo:
 
 
 if __name__ == "__main__":
-    demo.launch(theme=gr.themes.Soft(), share=True)
+    demo.launch(theme=gr.themes.Soft(), share=os.getenv("GRADIO_SHARE", "").lower() == "true")
