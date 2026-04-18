@@ -68,12 +68,11 @@
 
 - [x] **Notion bot connection** — resolved. Created new `blogAI-bot` internal integration in Claude Brain workspace, connected via Blog Posts database `...` → Connections menu. Fixed property name `userDefined:URL` → `URL` in `bot/notion_queue.py`.
 - [ ] **LinkedIn prompt tuning** — Qwen generates blog-length content for LinkedIn format. Root cause: `build_prompt` generates a "write a blog post" user message shared across all formats; LinkedIn system prompt overrides intent but doesn't fix the user-message framing. Fix: build a separate lean prompt for LinkedIn that doesn't carry blog-post framing.
-- [ ] **Experimental LinkedIn speak** — investigate LinkedIn-native tone and register as a distinct output mode. Requires a summarization step before the generation call: article + notes → condensed summary → LinkedIn post. Current pipeline passes raw article text; LinkedIn format likely needs a pre-condensed input to prevent blog-length bleed. Explore as a separate `linkedin_experimental` condition in the Study 2 eval once baseline LinkedIn mode is stable.
+- [ ] **Experimental LinkedIn speak** — investigate LinkedIn-native tone and register as a distinct output mode. Requires a summarization step before the generation call: article + notes → condensed summary → LinkedIn post. Current pipeline passes raw article text; LinkedIn format likely needs a pre-condensed input to prevent blog-length bleed.
 - [ ] **Gemma** — `google/gemma-2-9b-it` has no HF serverless inference provider. To add Gemma: connect via Google AI Studio API (`google-generativeai` SDK, free tier, OpenAI-compatible) — add `"google"` as a provider in `AVAILABLE_MODELS` and add a Google routing branch in `generate_for_format`. Model ID would be `gemma-2-9b-it` via the Google API.
 - [ ] **Mistral** — no Mistral model (v0.2, v0.3, Nemo) has HF serverless provider support. To add Mistral: use Mistral's own API at mistral.ai (free tier via `mistralai` SDK) or route through Together AI / Groq. Add `"mistral"` provider in config + routing branch.
 - [ ] **Llama 3.1 8B** — `meta-llama/Meta-Llama-3.1-8B-Instruct` has HF provider support (Novita + 3 others). Blocked only on accepting the license at huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct with the HF account that owns `HF_TOKEN`. One config line to add once unblocked.
 - [ ] **PDF file support** — accept PDF uploads as an alternative to article URL. Extract text via `pypdf` or `pdfplumber`, feed extracted text into `build_prompt` in place of `fetch_article()` output. Surface in Gradio UI as an optional file upload input.
-- [ ] **Evals repo** — companion evaluation study lives at `~/Desktop/blogAI_evals` (separate git repo). Keep separate: evals run on Colab with heavy ML deps (BERTScore, sentence-transformers, NLI) incompatible with HF Spaces `requirements.txt`. Link in README. Evals call HF/Anthropic APIs directly — no code dependency on this repo.
 - [ ] **Model selector** — dropdown is live (Qwen + Haiku). Extend once Gemma (Google AI Studio) or Llama (HF license) are unblocked.
 - [ ] **Post length control** — add short/medium/long option to UI. Map to word count ranges in `app/config.py`.
 - [ ] **Paywalled/JS-rendered URLs** — add clearer user-facing error. Consider playwright fallback.
@@ -92,6 +91,8 @@
 - multi-provider-model-routing — created — provider field in model config, HF falls back to Anthropic on failure
 - telegram-bot-error-handling — updated — added startup recovery signal pattern
 - hf-spaces-operations — updated — clarified silent message drop; added mitigation options (Make.com, webhook, Fly.io)
+- llm-api-model-availability — created — HF serverless provider check before adding models to production config
+- llm-pipeline-input-fallback — created — auto-generate missing user inputs via LLM and surface what was generated
 
 ---
 
@@ -111,9 +112,9 @@
 - 2026-04-02 — README updated with full usage guide — use case, Telegram message format, what app is not for, known limitations.
 - 2026-04-14 — Fixed LinkedIn length bleed: `build_prompt` now takes `fmt` param; LinkedIn gets a stripped prompt (no "write a blog post" framing, no example) — system prompt handles all constraints.
 - 2026-04-14 — Wired Claude Haiku fallback in `pipeline.py`: HF call wrapped in try/except, falls back to `CLAUDE_FALLBACK_MODEL` from config if HF fails. `ANTHROPIC_API_KEY` read from env.
-- 2026-04-14 — Backlog updated: Gemma model, PDF support, evals repo (keep separate), model selector prereqs.
+- 2026-04-14 — Backlog updated: Gemma model, PDF support, model selector prereqs.
 
 ## Project Sync (2026-04-14)
-- Detail page: https://app.notion.com/p/342de01ad2ab8114817dcfa20a74bee5 (created — first sync)
-- Database: Last worked on 2026-04-14, Last action, Status Active
+- Detail page: https://app.notion.com/p/342de01ad2ab8114817dcfa20a74bee5 (exists — no update)
+- Database: Last worked on 2026-04-14, Last action, Status Active — updated
 - Status: ✓ Complete
