@@ -12,7 +12,7 @@ Generative AI Use Disclaimer: The project is done in collaboration with Anthropi
 - Full evaluation methodology, results tables, calibration data, and statistical tests: [Evaluation Report](https://github.com/tyakovenko/blogAI_evals/blob/main/results/report.md)
 - Application usage, known limitations, and local setup: [README](https://github.com/tyakovenko/blogAI/blob/main/README.md)
 - [Live](https://huggingface.co/spaces/tyakovenko/blogAI) application. 
-- Sample
+- [Sample](https://github.com/tyakovenko/blogAI/blob/main/sample_output.md)
 
 ## 1. Introduction and Objective
 
@@ -33,7 +33,7 @@ Qwen 2.5 7B was selected over larger alternatives because free-tier serverless i
 
 **Relevance:** open-source, instruction-tuned, no API cost, accessible to any user without credentials.
 **Applicability:** text generation from structured prompts — the core task.
-**Feasibility:** confirmed working on HF free-tier serverless; resumable generation scripts for 180-output eval runs.
+**Feasibility:** confirmed working on HF free-tier serverless; resumable generation scripts for 162-output eval runs.
 
 ### Edit pass and fallback: Claude Haiku 4.5 (Anthropic API)
 
@@ -72,6 +72,8 @@ The Telegram bot (step 1) is the mobile capture layer — it saves notes to a No
 | LinkedIn | 150–250 words | Hook opening, short paragraphs, direct address, closing question |
 
 **Tone options:** Blog/Social (default), Professional, Academic — each maps to a distinct system prompt.
+
+The app also includes an experimental **LinkedIn-ify via Kagi** button — it sends the user's raw notes (not the full pipeline output) to Kagi Translate's style rewriter via URL parameter, opening the result in a new tab. It's a separate, lighter-weight function for quickly reformatting rough notes into LinkedIn style without an article URL.
 
 ---
 
@@ -322,7 +324,7 @@ The evaluation methodology is the substantive contribution of the study. Off-the
 
 **Fix the LinkedIn rubric.** Three of seven LinkedIn rubric checks rarely fire on real LinkedIn content. The corrected rubric (based on the 51-post feature analysis) would produce more accurate voice scores for the LinkedIn mode.
 
-**Extended model set.** The evaluation infrastructure supports additional conditions with minimal code changes. When Gemma and Mistral become available on a reliable inference endpoint, or when a local deployment is feasible, the full four-model comparison planned in `README_full_plan.md` can be run directly.
+**Extended model set.** The evaluation infrastructure supports additional conditions with minimal code changes. When Gemma and Mistral become available on a reliable inference endpoint, adding them requires only new prompt files and a model entry in `generate.py`.
 
 **Production monitoring.** The eval pipeline can be adapted for lightweight production monitoring — sampling real BlogAI outputs periodically and flagging substance drop or argument flattening rates that exceed study thresholds. This would detect model drift or prompt regression without a full re-run.
 
