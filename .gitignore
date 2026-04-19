@@ -9,3 +9,7 @@ __pycache__/
 dist/
 build/
 .pytest_cache/
+project-log.md
+oldPlan.md
+originalPlan.md
+*.pdf
