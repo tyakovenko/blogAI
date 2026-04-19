@@ -30,6 +30,7 @@
 | Telegram bot: never use `parse_mode="Markdown"` unless input is sanitized. Telegram silently drops the entire message if the text contains unescaped `*` or `_`. | Silent message drop bug | — |
 | Bot draft access: always use `drafts.get("Blog Post", "")` and `drafts.get("LinkedIn", "")` — never hardcode dict keys. In single-mode sessions only one key exists. | Recurring KeyError in save + correction handlers | — |
 | Never hardcode calculated values (percentages, counts, scores) in reports or UI — always derive from data | User feedback | — |
+| Always push to both `origin` and `hf` remotes — `git push hf main` triggers the HF Space rebuild. Pushing only to GitHub does nothing for the deployed app. | Recurring miss | — |
 | All Notion settings live at notion.so — never give confident UI navigation steps without flagging uncertainty | User feedback | — |
 
 ---
@@ -116,5 +117,5 @@
 
 ## Project Sync (2026-04-18)
 - Detail page: https://www.notion.so/342de01ad2ab8114817dcfa20a74bee5 (exists — no update)
-- Database: Last worked on 2026-04-18, Last action, Status Active — updated
+- Database: Last worked on 2026-04-18, Last action updated, Status Active — updated
 - Status: ✓ Complete
