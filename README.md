@@ -100,3 +100,11 @@ The LinkedIn-ify button (experimental) is a separate tool — it sends your raw 
 - Paywalled and JS-rendered pages will fail — the app returns an error. Open-access sources (dev blogs, newsletters, arXiv, company pages) work fine.
 - Generation model quality varies — HF free tier models follow formatting rules imperfectly. Falls back to Claude Haiku automatically if HF Inference is unavailable (requires `ANTHROPIC_API_KEY` set in Space secrets).
 - The app generates drafts only — it does not post to Medium, LinkedIn, or anywhere else.
+
+---
+
+## Evaluation
+
+The Qwen→Haiku pipeline was evaluated on 27 samples across two output modes (blog, LinkedIn) against Haiku standalone and Qwen standalone baselines. The pipeline outperforms Haiku standalone on substance fidelity (significantly on LinkedIn: 0.663 vs. 0.624, p=0.030) and substantially on voice fidelity (Tier 2 structural score: 0.956 vs. 0.800). The LinkedIn edit pass costs 38% less than standalone Haiku generation.
+
+Full methodology, results, and data: [blogAI_evals](https://github.com/tyakovenko/blogAI_evals)

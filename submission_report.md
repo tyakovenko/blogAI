@@ -166,7 +166,7 @@ python scripts/test_call.py
 
 ## 5. Model Evaluation and Performance Metrics
 
-*Full methodology, results tables, calibration data, and statistical tests are in the [Evaluation Report](../blogAI_evals/results/report.md). This section summarizes the approach and key findings.*
+*Full methodology, results tables, calibration data, and statistical tests are in the [Evaluation Report](https://github.com/tyakovenko/blogAI_evals/blob/main/results/report.md). This section summarizes the approach and key findings.*
 
 ### 5.1 Why Standard Metrics Don't Fit
 
@@ -203,7 +203,7 @@ BM25 retrieval over article passages followed by DeBERTa-v3-large-mnli NLI flags
 
 ### 5.5 Latency and Cost
 
-Latency was measured on every API call. Qwen 2.5 7B on HF free-tier serverless showed non-deterministic latency: 5–8 seconds per generation at ~1,200–1,300 prompt tokens, with variance attributable to shared infrastructure. A paid inference endpoint would reduce this to approximately 1–2 seconds for the same model.Haiku latency was not measured separately.
+Latency was measured on every API call. Qwen 2.5 7B on HF free-tier serverless showed non-deterministic latency: 5–8 seconds per generation at ~1,200–1,300 prompt tokens, with variance attributable to shared infrastructure. A paid inference endpoint would reduce this to approximately 1–2 seconds for the same model. Haiku latency was logged per call by the cost tracker but not analyzed as a primary metric — median observed latency was approximately 3–4 seconds.
 
 Cost tracking applies to Haiku calls only (Qwen is free tier):
 
