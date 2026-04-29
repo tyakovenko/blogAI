@@ -111,7 +111,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         model_key = _conversations.get(chat_id, {}).get("model_key", DEFAULT_MODEL_KEY)
         await update.message.reply_text(f"Running pipeline ({mode} mode, {model_key})...")
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         try:
             result = await loop.run_in_executor(_executor, _run_pipeline, url, notes, mode, model_key)
         except Exception as e:
@@ -152,7 +152,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         await update.message.reply_text("Applying correction...")
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         try:
             updated = await loop.run_in_executor(_executor, _apply_correction, current_draft, text)
         except Exception as e:
