@@ -277,7 +277,14 @@ async def handle_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> No
 # ── App builder ───────────────────────────────────────────────────────────────
 
 def _build_app(token: str):
-    app = ApplicationBuilder().token(token).build()
+    app = (
+        ApplicationBuilder()
+        .token(token)
+        .connect_timeout(30)
+        .read_timeout(30)
+        .write_timeout(30)
+        .build()
+    )
     app.add_handler(CommandHandler("blog", handle_blog))
     app.add_handler(CommandHandler("linkedin", handle_linkedin_cmd))
     app.add_handler(CommandHandler("all", handle_all))
