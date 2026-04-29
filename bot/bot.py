@@ -302,7 +302,7 @@ def start_polling_in_background() -> None:
         try:
             logger.info("Telegram bot thread starting")
             app = _build_app(token)
-            app.run_polling()
+            app.run_polling(stop_signals=None)  # signal handlers require main thread
         except Exception:
             logger.exception("Telegram bot thread crashed — bot is offline")
 
