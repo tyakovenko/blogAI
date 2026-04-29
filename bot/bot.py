@@ -296,22 +296,33 @@ def start_polling_in_background() -> None:
         logger.warning("TELEGRAM_BOT_TOKEN not set — Telegram bot will not start")
         return
 
+    async def _run() -> None:
+        app = _build_app(token)
+        async with app:
+            await app.start()
+            await app.updater.start_polling()
+            await asyncio.Event().wait()
+
     def _thread() -> None:
         import time
-        # PTB 21+: run_polling() manages its own event loop — safer in a thread than
-        # the manual async-with pattern, which can fail silently on loop conflicts.
-        # Retry loop handles transient network failures on HF Spaces cold start.
+        # run_polling() installs signal handlers (main-thread only) and owns its event
+        # loop — both break in a daemon thread. Manual async-with gives us full control:
+        # fresh loop per attempt, no signal handlers, clean retry on transient failures.
         delay = 5
         while True:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
             try:
                 logger.info("Telegram bot thread starting")
-                app = _build_app(token)
-                app.run_polling(stop_signals=None)  # signal handlers require main thread
-                break  # run_polling returned cleanly (shouldn't happen) — exit
+                loop.run_until_complete(_run())
+                break  # clean exit (Event().wait() only returns if cancelled)
             except Exception:
-                logger.exception("Telegram bot thread crashed — retrying in %ds", delay)
+                logger.exception("Telegram bot crashed — retrying in %ds", delay)
                 time.sleep(delay)
                 delay = min(delay * 2, 60)
+            finally:
+                if not loop.is_closed():
+                    loop.close()
 
     threading.Thread(target=_thread, daemon=True, name="telegram-bot").start()
     logger.info("Telegram bot thread launched")
