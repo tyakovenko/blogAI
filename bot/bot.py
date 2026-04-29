@@ -297,14 +297,21 @@ def start_polling_in_background() -> None:
         return
 
     def _thread() -> None:
+        import time
         # PTB 21+: run_polling() manages its own event loop — safer in a thread than
         # the manual async-with pattern, which can fail silently on loop conflicts.
-        try:
-            logger.info("Telegram bot thread starting")
-            app = _build_app(token)
-            app.run_polling(stop_signals=None)  # signal handlers require main thread
-        except Exception:
-            logger.exception("Telegram bot thread crashed — bot is offline")
+        # Retry loop handles transient network failures on HF Spaces cold start.
+        delay = 5
+        while True:
+            try:
+                logger.info("Telegram bot thread starting")
+                app = _build_app(token)
+                app.run_polling(stop_signals=None)  # signal handlers require main thread
+                break  # run_polling returned cleanly (shouldn't happen) — exit
+            except Exception:
+                logger.exception("Telegram bot thread crashed — retrying in %ds", delay)
+                time.sleep(delay)
+                delay = min(delay * 2, 60)
 
     threading.Thread(target=_thread, daemon=True, name="telegram-bot").start()
     logger.info("Telegram bot thread launched")
