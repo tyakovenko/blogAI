@@ -296,20 +296,18 @@ def start_polling_in_background() -> None:
         logger.warning("TELEGRAM_BOT_TOKEN not set — Telegram bot will not start")
         return
 
-    async def _run() -> None:
-        app = _build_app(token)
-        async with app:
-            await app.start()
-            await app.updater.start_polling()
-            await asyncio.Event().wait()
-
     def _thread() -> None:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(_run())
+        # PTB 21+: run_polling() manages its own event loop — safer in a thread than
+        # the manual async-with pattern, which can fail silently on loop conflicts.
+        try:
+            logger.info("Telegram bot thread starting")
+            app = _build_app(token)
+            app.run_polling()
+        except Exception:
+            logger.exception("Telegram bot thread crashed — bot is offline")
 
     threading.Thread(target=_thread, daemon=True, name="telegram-bot").start()
-    logger.info("Telegram bot polling started in background thread")
+    logger.info("Telegram bot thread launched")
 
 
 if __name__ == "__main__":
